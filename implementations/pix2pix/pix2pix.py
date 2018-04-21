@@ -68,7 +68,7 @@ else:
 criterion_GAN = torch.nn.MSELoss()
 criterion_translation = torch.nn.L1Loss()
 
-# Loss weights
+# Loss weight of L1 pixel-wise loss between translated image and real image
 lambda_trans = 100
 
 # Optimizers
@@ -155,9 +155,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         #  Log Progress
         # --------------
 
-        logger.log({'loss_G': loss_G,
-                    'loss_G_trans': loss_trans,
-                    'loss_D': loss_D},
+        logger.log({'loss_G': loss_G, 'loss_G_trans': loss_trans, 'loss_D': loss_D},
                     images={'real_B': real_B, 'fake_A': fake_A, 'real_A': real_A},
                     epoch=epoch, batch=i)
 

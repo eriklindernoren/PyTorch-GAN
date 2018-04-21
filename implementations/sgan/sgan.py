@@ -24,6 +24,7 @@ parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first 
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
+parser.add_argument('--num_classes', type=int, default=10, help='number of classes for dataset')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=1000, help='interval between image sampling')
@@ -44,7 +45,9 @@ class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
-        self.init_size = opt.img_size // 4
+        self.label_emb = nn.Embedding(opt.num_classes, opt.latent_dim)
+
+        self.init_size = opt.img_size // 4 # Initial size before upsampling
         self.l1 = nn.Sequential(nn.Linear(opt.latent_dim, 128*self.init_size**2))
 
         cnn_layers = [  nn.BatchNorm2d(128),
@@ -59,19 +62,20 @@ class Generator(nn.Module):
                         nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
                         nn.Tanh() ]
 
-        self.conv_model = nn.Sequential(*cnn_layers)
+        self.conv_blocks = nn.Sequential(*cnn_layers)
 
     def forward(self, noise):
         out = self.l1(noise)
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
-        img = self.conv_model(out)
+        img = self.conv_blocks(out)
         return img
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, bn=True):
+        def discriminator_block(in_filters, out_filters, bn):
+            """Returns layers of each discriminator block"""
             block = [   nn.Conv2d(in_filters, out_filters, 3, 2, 1),
                         nn.LeakyReLU(0.2, inplace=True),
                         nn.Dropout2d(0.25)]
@@ -85,19 +89,24 @@ class Discriminator(nn.Module):
             layers.extend(discriminator_block(in_filters, out_filters, bn))
             in_filters = out_filters
 
-        self.model = nn.Sequential(*layers)
+        self.conv_blocks = nn.Sequential(*layers)
 
         # The height and width of downsampled image
         ds_size = opt.img_size // 2**4
+
+        # Output layers
         self.adv_layer = nn.Sequential( nn.Linear(out_filters*ds_size**2, 1),
                                         nn.Sigmoid())
+        self.aux_layer = nn.Sequential( nn.Linear(out_filters*ds_size**2, opt.num_classes+1),
+                                        nn.Softmax())
 
     def forward(self, img):
-        out = self.model(img)
+        out = self.conv_blocks(img)
         out = out.view(out.shape[0], -1)
         validity = self.adv_layer(out)
+        label = self.aux_layer(out)
 
-        return validity
+        return validity, label
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -116,32 +125,39 @@ os.makedirs('../../data/mnist', exist_ok=True)
 mnist_loader = torch.utils.data.DataLoader(
     datasets.MNIST('../../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
-                       transforms.Resize(opt.img_size),
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                        transforms.Resize(opt.img_size),
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
                    ])),
     batch_size=opt.batch_size, shuffle=True)
 
-# Use binary cross-entropy loss
+# Loss functions
 adversarial_loss = torch.nn.BCELoss()
+auxiliary_loss = torch.nn.CrossEntropyLoss()
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
-Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
 for epoch in range(opt.n_epochs):
-    for i, (imgs, _) in enumerate(mnist_loader):
+    for i, (imgs, labels) in enumerate(mnist_loader):
+
+        batch_size = imgs.shape[0]
 
         # Adversarial ground truths
-        valid = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
-        fake = Variable(Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
+        valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
+        fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
+        fake_aux_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
 
         if cuda:
             imgs = imgs.type(torch.cuda.FloatTensor)
+            labels = labels.type(torch.cuda.LongTensor)
 
         real_imgs = Variable(imgs)
+        labels = Variable(labels)
 
         # -----------------
         #  Train Generator
@@ -149,14 +165,15 @@ for epoch in range(opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        # Sample noise as generator input
-        z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
+        # Sample noise and labels as generator input
+        z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
 
         # Generate a batch of images
         gen_imgs = generator(z)
 
         # Loss measures generator's ability to fool the discriminator
-        g_loss = adversarial_loss(discriminator(gen_imgs), valid)
+        validity, _ = discriminator(gen_imgs)
+        g_loss = adversarial_loss(validity, valid)
 
         g_loss.backward()
         optimizer_G.step()
@@ -167,15 +184,29 @@ for epoch in range(opt.n_epochs):
 
         optimizer_D.zero_grad()
 
-        # Measure discriminator's ability to classify real from generated samples
-        real_loss = adversarial_loss(discriminator(real_imgs), valid)
-        fake_loss = adversarial_loss(discriminator(gen_imgs.detach()), fake)
-        d_loss = 0.5 * (real_loss + fake_loss)
+        # Loss for real images
+        real_pred, real_aux = discriminator(real_imgs)
+        d_real_loss =  (adversarial_loss(real_pred, valid) + \
+                        auxiliary_loss(real_aux, labels)) / 2
+
+        # Loss for fake images
+        fake_pred, fake_aux = discriminator(gen_imgs.detach())
+        d_fake_loss =  (adversarial_loss(fake_pred, fake) + \
+                        auxiliary_loss(fake_aux, fake_aux_gt)) / 2
+
+        # Total discriminator loss
+        d_loss = (d_real_loss + d_fake_loss) / 2
+
+        # Calculate discriminator accuracy
+        pred = np.concatenate([real_aux.data.cpu().numpy(), fake_aux.data.cpu().numpy()], axis=0)
+        gt = np.concatenate([labels.data.cpu().numpy(), fake_aux_gt.data.cpu().numpy()], axis=0)
+        d_acc = np.mean(np.argmax(pred, axis=1) == gt)
 
         d_loss.backward()
         optimizer_D.step()
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
-                                                            d_loss.data.cpu().numpy()[0], g_loss.data.cpu().numpy()[0]))
+        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %d%%] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
+                                                            d_loss.data.cpu().numpy()[0], 100 * d_acc,
+                                                            g_loss.data.cpu().numpy()[0]))
 
-    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
+    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=8, normalize=True)

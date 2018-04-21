@@ -26,7 +26,7 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
 parser.add_argument('--img_size', type=int, default=28, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-parser.add_argument('--sample_interval', type=int, default=1000, help='number of image channels')
+parser.add_argument('--sample_interval', type=int, default=1000, help='interval betwen image samples')
 opt = parser.parse_args()
 print(opt)
 
