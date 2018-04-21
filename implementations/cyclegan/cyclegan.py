@@ -44,6 +44,10 @@ print(opt)
 
 cuda = True if torch.cuda.is_available() else False
 
+# Calculate output of image discriminator (PatchGAN)
+patch_h, patch_w = int(opt.img_height / 2**3), int(opt.img_width / 2**3)
+patch = (opt.batch_size, 1, patch_h, patch_w)
+
 # Initialize generator and discriminator
 G_AB = GeneratorResNet() if opt.generator_type == 'resnet' else GeneratorUNet()
 G_BA = GeneratorResNet() if opt.generator_type == 'resnet' else GeneratorUNet()
@@ -94,8 +98,8 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 input_A = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
 input_B = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
 # Adversarial ground truths
-valid = Variable(Tensor(opt.batch_size).fill_(1.0), requires_grad=False)
-fake = Variable(Tensor(opt.batch_size).fill_(0.0), requires_grad=False)
+valid = Variable(Tensor(np.ones(patch)), requires_grad=False)
+fake = Variable(Tensor(np.zeros(patch)), requires_grad=False)
 
 # Buffers of previously generated samples
 fake_A_buffer = ReplayBuffer()

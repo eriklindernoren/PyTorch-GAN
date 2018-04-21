@@ -48,16 +48,18 @@ class GeneratorUNet(nn.Module):
 
         self.down1 = UNetDown(in_channels, 64, bn=False)
         self.down2 = UNetDown(64, 128)
-        self.down3 = UNetDown(128, 256, dropout=0.5)
+        self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
         self.down5 = UNetDown(512, 512, dropout=0.5)
         self.down6 = UNetDown(512, 512, dropout=0.5)
+        self.down7 = UNetDown(512, 512, dropout=0.5)
 
         self.up1 = UNetUp(512, 512, dropout=0.5)
         self.up2 = UNetUp(1024, 512, dropout=0.5)
-        self.up3 = UNetUp(1024, 256, dropout=0.5)
-        self.up4 = UNetUp(512, 128)
-        self.up5 = UNetUp(256, 64)
+        self.up3 = UNetUp(1024, 512, dropout=0.5)
+        self.up4 = UNetUp(1024, 256)
+        self.up5 = UNetUp(512, 128)
+        self.up6 = UNetUp(256, 64)
 
 
         final = [   nn.Upsample(scale_factor=2),
@@ -73,13 +75,15 @@ class GeneratorUNet(nn.Module):
         d4 = self.down4(d3)
         d5 = self.down5(d4)
         d6 = self.down6(d5)
-        u1 = self.up1(d6, d5)
-        u2 = self.up2(u1, d4)
-        u3 = self.up3(u2, d3)
-        u4 = self.up4(u3, d2)
-        u5 = self.up5(u4, d1)
+        d7 = self.down7(d6)
+        u1 = self.up1(d7, d6)
+        u2 = self.up2(u1, d5)
+        u3 = self.up3(u2, d4)
+        u4 = self.up4(u3, d3)
+        u5 = self.up5(u4, d2)
+        u6 = self.up6(u5, d1)
 
-        return self.final(u5)
+        return self.final(u6)
 
 
 ##############################
@@ -159,17 +163,20 @@ class Discriminator(nn.Module):
             return layers
 
         layers = []
-        in_filters = in_channels
+        in_filters = in_channels*2
         for out_filters, stride, normalize in [ (64, 2, False),
                                                 (128, 2, True),
                                                 (256, 2, True),
-                                                (512, 1, True)]:
+                                                (512, 2, True)]:
             layers.extend(discriminator_block(in_filters, out_filters, stride, normalize))
             in_filters = out_filters
 
+        # Output layer
         layers.append(nn.Conv2d(out_filters, 1, 3, 1, 1))
 
         self.model = nn.Sequential(*layers)
 
-    def forward(self, img):
-        return self.model(img)
+    def forward(self, img_A, img_B):
+        # Concatenate image and condition image by channels to produce input
+        img_input = torch.cat((img_A, img_B), 1)
+        return self.model(img_input)
