@@ -192,6 +192,6 @@ for epoch in range(opt.n_epochs):
         optimizer_D.step()
 
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
-                                                            d_loss.data.cpu().numpy()[0], g_loss.data.cpu().numpy()[0]))
+                                                            d_loss.data[0], g_loss.data[0]))
 
     sample_image(10, epoch)

@@ -88,8 +88,6 @@ else:
     generator.apply(weights_init_normal)
     discriminator.apply(weights_init_normal)
 
-
-
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
@@ -102,7 +100,7 @@ input_hr = Tensor(opt.batch_size, opt.channels, opt.hr_height, opt.hr_width)
 valid = Variable(Tensor(np.ones(patch)), requires_grad=False)
 fake = Variable(Tensor(np.zeros(patch)), requires_grad=False)
 
-# Dataset loaders
+# Transforms for low resolution images and high resolution images
 lr_transforms = [   transforms.Resize((opt.hr_height//4, opt.hr_height//4), Image.BICUBIC),
                     transforms.ToTensor(),
                     transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
@@ -110,9 +108,9 @@ lr_transforms = [   transforms.Resize((opt.hr_height//4, opt.hr_height//4), Imag
 hr_transforms = [   transforms.Resize((opt.hr_height, opt.hr_height), Image.BICUBIC),
                     transforms.ToTensor(),
                     transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+
 dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, lr_transforms=lr_transforms, hr_transforms=hr_transforms),
                         batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
-
 
 # ----------
 #  Training
@@ -131,7 +129,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        # GAN loss
+        # Generate a high resolution image from low resolution input
         gen_hr = generator(imgs_lr)
 
         # Adversarial loss
@@ -147,7 +145,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_G = loss_content + 1e-3 * loss_GAN
 
         loss_G.backward()
-
         optimizer_G.step()
 
         # ---------------------
@@ -156,18 +153,14 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_D.zero_grad()
 
-        # Real loss
-        pred_real = discriminator(imgs_hr)
-        loss_real = criterion_GAN(pred_real, valid)
-
-        # Fake loss
-        pred_fake = discriminator(gen_hr.detach())
-        loss_fake = criterion_GAN(pred_fake, fake)
+        # Loss of real and fake images
+        loss_real = criterion_GAN(discriminator(imgs_hr), valid)
+        loss_fake = criterion_GAN(discriminator(gen_hr.detach()), fake)
 
         # Total loss
-        loss_D = 0.5 * (loss_real + loss_fake)
-        loss_D.backward()
+        loss_D = (loss_real + loss_fake) / 2
 
+        loss_D.backward()
         optimizer_D.step()
 
         # --------------

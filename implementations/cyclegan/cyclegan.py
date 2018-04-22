@@ -142,18 +142,16 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_id_B = criterion_identity(G_AB(real_B), real_B)
         loss_id_A = criterion_identity(G_BA(real_A), real_A)
 
-        loss_identity = 0.5 * (loss_id_A + loss_id_B)
+        loss_identity = (loss_id_A + loss_id_B) / 2
 
         # GAN loss
         fake_B = G_AB(real_A)
-        pred_fake = D_B(fake_B)
-        loss_GAN_AB = criterion_GAN(pred_fake, valid)
+        loss_GAN_AB = criterion_GAN(D_B(fake_B), valid)
 
         fake_A = G_BA(real_B)
-        pred_fake = D_A(fake_A)
-        loss_GAN_BA = criterion_GAN(pred_fake, valid)
+        loss_GAN_BA = criterion_GAN(D_A(fake_A), valid)
 
-        loss_GAN = 0.5 * (loss_GAN_AB + loss_GAN_BA)
+        loss_GAN = (loss_GAN_AB + loss_GAN_BA) / 2
 
         # Cycle loss
         recov_A = G_BA(fake_B)
@@ -162,7 +160,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         recov_B = G_AB(fake_A)
         loss_cycle_B = criterion_cycle(recov_B, real_B)
 
-        loss_cycle = 0.5 * (loss_cycle_A + loss_cycle_B)
+        loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
 
         # Total loss
         loss_G =    loss_GAN + \
@@ -170,7 +168,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
                     lambda_id * loss_identity
 
         loss_G.backward()
-
         optimizer_G.step()
 
         # -----------------------
@@ -180,18 +177,16 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D_A.zero_grad()
 
         # Real loss
-        pred_real = D_A(real_A)
-        loss_real = criterion_GAN(pred_real, valid)
+        loss_real = criterion_GAN(D_A(real_A), valid)
 
         # Fake loss (on batch of previously generated samples)
         fake_A_ = fake_A_buffer.push_and_pop(fake_A)
-        pred_fake = D_A(fake_A_.detach())
-        loss_fake = criterion_GAN(pred_fake, fake)
+        loss_fake = criterion_GAN(D_A(fake_A_.detach()), fake)
 
         # Total loss
-        loss_D_A = 0.5 * (loss_real + loss_fake)
-        loss_D_A.backward()
+        loss_D_A = (loss_real + loss_fake) / 2
 
+        loss_D_A.backward()
         optimizer_D_A.step()
 
         # -----------------------
@@ -201,18 +196,16 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D_B.zero_grad()
 
         # Real loss
-        pred_real = D_B(real_B)
-        loss_real = criterion_GAN(pred_real, valid)
+        loss_real = criterion_GAN(D_B(real_B), valid)
 
         # Fake loss (on batch of previously generated samples)
         fake_B_ = fake_B_buffer.push_and_pop(fake_B)
-        pred_fake = D_B(fake_B_.detach())
-        loss_fake = criterion_GAN(pred_fake, fake)
+        loss_fake = criterion_GAN(D_B(fake_B_.detach()), fake)
 
         # Total loss
-        loss_D_B = (loss_real + loss_fake)*0.5
-        loss_D_B.backward()
+        loss_D_B = (loss_real + loss_fake) / 2
 
+        loss_D_B.backward()
         optimizer_D_B.step()
 
         # --------------
