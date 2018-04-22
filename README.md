@@ -37,7 +37,7 @@ _Auxiliary Classifier Generative Adversarial Network_
 
 [[Paper]](https://arxiv.org/abs/1610.09585) [[Code]](implementations/acgan/acgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/acgan/
 $ python3 acgan.py
@@ -48,7 +48,7 @@ _Adversarial Autoencoder_
 
 [[Paper]](https://arxiv.org/abs/1511.05644) [[Code]](implementations/aae/adversarial_autoencoder.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/aae/
 $ python3 aae.py
@@ -59,7 +59,7 @@ _Boundary-Seeking Generative Adversarial Networks_
 
 [[Paper]](https://arxiv.org/abs/1702.08431) [[Code]](implementations/bgan/bgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/bgan/
 $ python3 bgan.py
@@ -71,7 +71,7 @@ _Semi-Supervised Learning with Context-Conditional Generative Adversarial Networ
 
 [[Paper]](https://arxiv.org/abs/1611.06430) [[Code]](implementations/ccgan/ccgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/ccgan/
 $ python3 ccgan.py
@@ -82,7 +82,7 @@ _Conditional Generative Adversarial Nets_
 
 [[Paper]](https://arxiv.org/abs/1411.1784) [[Code]](implementations/cgan/cgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/cgan/
 $ python3 cgan.py
@@ -98,7 +98,7 @@ _Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks
     <img src="http://eriklindernoren.se/images/cyclegan.png" width="640"\>
 </p>
 
-#### Example
+#### Run Example
 ```
 $ cd data/
 $ bash download_cyclegan_dataset.sh apple2orange
@@ -111,7 +111,7 @@ _Deep Convolutional Generative Adversarial Network_
 
 [[Paper]](https://arxiv.org/abs/1511.06434) [[Code]](implementations/dcgan/dcgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/dcgan/
 $ python3 dcgan.py
@@ -126,7 +126,7 @@ _Learning to Discover Cross-Domain Relations with Generative Adversarial Network
     <img src="http://eriklindernoren.se/images/discogan_architecture.png" width="640"\>
 </p>
 
-#### Example
+#### Run Example
 ```
 $ cd data/
 $ bash download_pix2pix_dataset.sh edges2shoes
@@ -140,7 +140,7 @@ _Generative Adversarial Network_ with a MLP generator and discriminator
 
 [[Paper]](https://arxiv.org/abs/1406.2661) [[Code]](implementations/gan/gan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/gan/
 $ python3 gan.py
@@ -151,7 +151,7 @@ _Least Squares Generative Adversarial Networks_
 
 [[Paper]](https://arxiv.org/abs/1611.04076) [[Code]](implementations/lsgan/lsgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/lsgan/
 $ python3 lsgan.py
@@ -166,7 +166,7 @@ _Unpaired Image-to-Image Translation with Conditional Adversarial Networks_
     <img src="http://eriklindernoren.se/images/pix2pix_architecture.png" width="640"\>
 </p>
 
-#### Example
+#### Run Example
 ```
 $ cd data/
 $ bash download_pix2pix_dataset.sh facades
@@ -179,7 +179,7 @@ _Semi-Supervised Generative Adversarial Network_
 
 [[Paper]](https://arxiv.org/abs/1606.01583) [[Code]](implementations/sgan/sgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/sgan/
 $ python3 sgan.py
@@ -194,7 +194,7 @@ _Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Ne
     <img src="http://eriklindernoren.se/images/superresgan.png" width="640"\>
 </p>
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/srgan/
 <follow steps at the top of srgan.py>
@@ -206,7 +206,7 @@ _Wasserstein GAN_ (with DCGAN generator and discriminator)
 
 [[Paper]](https://arxiv.org/abs/1701.07875) [[Code]](implementations/wgan/wgan.py)
 
-#### Example
+#### Run Example
 ```
 $ cd implementations/wgan/
 $ python3 wgan.py
