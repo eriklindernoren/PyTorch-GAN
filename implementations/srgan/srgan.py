@@ -22,7 +22,6 @@ from torch.autograd import Variable
 
 from models import *
 from datasets import *
-from utils import *
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -50,6 +49,14 @@ opt = parser.parse_args()
 print(opt)
 
 cuda = True if torch.cuda.is_available() else False
+
+def weights_init_normal(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
 
 # Calculate output of image discriminator (PatchGAN)
 patch_h, patch_w = int(opt.hr_height / 2**4), int(opt.hr_width / 2**4)
@@ -85,10 +92,6 @@ lambda_feature_match = 100
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
-# Learning rate update schedulers
-lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(optimizer_D, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-
 # Inputs & targets memory allocation
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 input_lr = Tensor(opt.batch_size, opt.channels, opt.hr_height//4, opt.hr_width//4)
@@ -108,8 +111,6 @@ hr_transforms = [   transforms.Resize((opt.hr_height, opt.hr_height), Image.BICU
 dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, lr_transforms=lr_transforms, hr_transforms=hr_transforms),
                         batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
 
-# Progress logger
-logger = Logger(opt.n_epochs, len(dataloader), opt.sample_interval)
 
 # ----------
 #  Training
@@ -130,9 +131,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # GAN loss
         gen_hr = generator(imgs_lr)
-
-        print (gen_hr.shape)
-        print (imgs_hr.shape)
 
         # Adversarial loss
         gen_validity = discriminator(gen_hr)
@@ -174,13 +172,18 @@ for epoch in range(opt.epoch, opt.n_epochs):
         #  Log Progress
         # --------------
 
-        logger.log({'loss_G': loss_G, 'loss_G_trans': loss_trans, 'loss_D': loss_D},
-                    images={'real_B': real_B, 'fake_A': fake_A, 'real_A': real_A},
-                    epoch=epoch, batch=i)
+        sys.stdout.write("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
+                                                            (epoch, opt.n_epochs, i, len(dataloader),
+                                                            d_loss.data[0], g_loss.data[0]))
 
-    # Update learning rates
-    lr_scheduler_G.step()
-    lr_scheduler_D.step()
+        batches_done = epoch * len(dataloader) + i
+        if batches_done % opt.sample_interval == 0:
+            # Save image sample
+            low_res = transforms.Resize((opt.hr_height, opt.hr_height), Image.BICUBIC)(imgs_lr)
+            save_image( torch.cat((low_res.data, gen_hr.data, imgs_hr.data), -2),
+                        'images/%d.png' % batches_done, normalize=True)
+
+
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
