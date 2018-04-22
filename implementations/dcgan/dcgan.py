@@ -47,24 +47,24 @@ class Generator(nn.Module):
         self.init_size = opt.img_size // 4
         self.l1 = nn.Sequential(nn.Linear(opt.latent_dim, 128*self.init_size**2))
 
-        cnn_layers = [  nn.BatchNorm2d(128),
-                        nn.Upsample(scale_factor=2),
-                        nn.Conv2d(128, 128, 3, stride=1, padding=1),
-                        nn.BatchNorm2d(128, 0.8),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Upsample(scale_factor=2),
-                        nn.Conv2d(128, 64, 3, stride=1, padding=1),
-                        nn.BatchNorm2d(64, 0.8),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
-                        nn.Tanh() ]
-
-        self.conv_model = nn.Sequential(*cnn_layers)
+        self.conv_blocks = nn.Sequential(
+            nn.BatchNorm2d(128),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.BatchNorm2d(128, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
+            nn.Tanh()
+        )
 
     def forward(self, noise):
         out = self.l1(noise)
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
-        img = self.conv_model(out)
+        img = self.conv_blocks(out)
         return img
 
 class Discriminator(nn.Module):
@@ -131,6 +131,10 @@ optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1,
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+
+# ----------
+#  Training
+# ----------
 
 for epoch in range(opt.n_epochs):
     for i, (imgs, _) in enumerate(mnist_loader):

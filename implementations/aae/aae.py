@@ -45,14 +45,14 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
 
-        layers = [  nn.Linear(opt.img_size**2, 512),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(512, 512),
-                    nn.BatchNorm1d(512),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(512, opt.latent_dim)]
-
-        self.model = nn.Sequential(*layers)
+        self.model = nn.Sequential(
+            nn.Linear(opt.img_size**2, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, opt.latent_dim)
+        )
 
     def forward(self, img):
         img_flat = img.view(img.shape[0], -1)
@@ -63,15 +63,15 @@ class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
 
-        layers = [  nn.Linear(opt.latent_dim, 512),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(512, 512),
-                    nn.BatchNorm1d(512),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(512, opt.img_size**2),
-                    nn.Tanh()]
-
-        self.model = nn.Sequential(*layers)
+        self.model = nn.Sequential(
+            nn.Linear(opt.latent_dim, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, opt.img_size**2),
+            nn.Tanh()
+        )
 
     def forward(self, noise):
         img_flat = self.model(noise)
@@ -82,14 +82,14 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        layers = [  nn.Linear(opt.latent_dim, 512),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(512, 256),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(256, 1),
-                    nn.Sigmoid() ]
-
-        self.model = nn.Sequential(*layers)
+        self.model = nn.Sequential(
+            nn.Linear(opt.latent_dim, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
 
     def forward(self, latent):
         validity = self.model(latent)
