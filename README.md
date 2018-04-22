@@ -17,6 +17,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     + [Context-Conditional GAN](#cc-gan)
     + [CycleGAN](#cyclegan)
     + [Deep Convolutional GAN](#dcgan)
+    + [DiscoGAN](#discogan)
     + [Generative Adversarial Network](#gan)
     + [LSGAN](#lsgan)
     + [Pix2Pix](#pix2pix)
@@ -115,6 +116,26 @@ Paper: https://arxiv.org/abs/1511.06434
 $ cd implementations/dcgan/
 $ python3 dcgan.py
 ```
+
+### DiscoGAN
+Implementation of _Learning to Discover Cross-Domain Relations with Generative Adversarial Networks_.
+
+[Code](implementationsdiscogan/discogan.py)
+
+Paper: https://arxiv.org/abs/1703.05192
+
+<p align="center">
+    <img src="http://eriklindernoren.se/images/discogan_architecture.png" width="640"\>
+</p>
+
+#### Example
+```
+$ cd data/
+$ bash download_pix2pix_dataset.sh edges2shoes
+$ cd ../implementations/discogan/
+$ python3 discogan.py
+```
+
 
 ### GAN
 Implementation of _Generative Adversarial Network_ with a MLP generator and discriminator.
