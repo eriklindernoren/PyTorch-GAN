@@ -108,6 +108,10 @@ class Discriminator(nn.Module):
 
         return validity, label
 
+# Loss functions
+adversarial_loss = torch.nn.BCELoss()
+auxiliary_loss = torch.nn.CrossEntropyLoss()
+
 # Initialize generator and discriminator
 generator = Generator()
 discriminator = Discriminator()
@@ -115,6 +119,8 @@ discriminator = Discriminator()
 if cuda:
     generator.cuda()
     discriminator.cuda()
+    adversarial_loss.cuda()
+    auxiliary_loss.cuda()
 
 # Initialize weights
 generator.apply(weights_init_normal)
@@ -130,10 +136,6 @@ mnist_loader = torch.utils.data.DataLoader(
                         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
                    ])),
     batch_size=opt.batch_size, shuffle=True)
-
-# Loss functions
-adversarial_loss = torch.nn.BCELoss()
-auxiliary_loss = torch.nn.CrossEntropyLoss()
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))

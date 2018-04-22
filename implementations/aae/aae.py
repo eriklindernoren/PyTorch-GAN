@@ -2,6 +2,7 @@ import argparse
 import os
 import numpy as np
 import math
+import itertools
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -40,79 +41,80 @@ def weights_init_normal(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
-class Generator(nn.Module):
+class Encoder(nn.Module):
     def __init__(self):
-        super(Generator, self).__init__()
+        super(Encoder, self).__init__()
 
-        self.init_size = opt.img_size // 4
-        self.l1 = nn.Sequential(nn.Linear(opt.latent_dim, 128*self.init_size**2))
+        layers = [  nn.Linear(opt.img_size**2, 512),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Linear(512, 512),
+                    nn.BatchNorm1d(512),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Linear(512, opt.latent_dim)]
 
-        cnn_layers = [  nn.BatchNorm2d(128),
-                        nn.Upsample(scale_factor=2),
-                        nn.Conv2d(128, 128, 3, stride=1, padding=1),
-                        nn.BatchNorm2d(128, 0.8),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Upsample(scale_factor=2),
-                        nn.Conv2d(128, 64, 3, stride=1, padding=1),
-                        nn.BatchNorm2d(64, 0.8),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
-                        nn.Tanh() ]
+        self.model = nn.Sequential(*layers)
 
-        self.conv_model = nn.Sequential(*cnn_layers)
+    def forward(self, img):
+        img_flat = img.view(img.shape[0], -1)
+        latent = self.model(img_flat)
+        return latent
+
+class Decoder(nn.Module):
+    def __init__(self):
+        super(Decoder, self).__init__()
+
+        layers = [  nn.Linear(opt.latent_dim, 512),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Linear(512, 512),
+                    nn.BatchNorm1d(512),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Linear(512, opt.img_size**2),
+                    nn.Tanh()]
+
+        self.model = nn.Sequential(*layers)
 
     def forward(self, noise):
-        out = self.l1(noise)
-        out = out.view(out.shape[0], 128, self.init_size, self.init_size)
-        img = self.conv_model(out)
+        img_flat = self.model(noise)
+        img = img_flat.view(img_flat.shape[0], opt.channels, opt.img_size, opt.img_size)
         return img
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, bn=True):
-            block = [   nn.Conv2d(in_filters, out_filters, 3, 2, 1),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Dropout2d(0.25)]
-            if bn:
-                block.append(nn.BatchNorm2d(out_filters, 0.8))
-            return block
-
-        layers = []
-        in_filters = opt.channels
-        for out_filters, bn in [(16, False), (32, True), (64, True), (128, False)]:
-            layers.extend(discriminator_block(in_filters, out_filters, bn))
-            in_filters = out_filters
+        layers = [  nn.Linear(opt.latent_dim, 512),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Linear(512, 256),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Linear(256, 1),
+                    nn.Sigmoid() ]
 
         self.model = nn.Sequential(*layers)
 
-        # The height and width of downsampled image
-        ds_size = opt.img_size // 2**4
-        self.adv_layer = nn.Sequential( nn.Linear(out_filters*ds_size**2, 1),
-                                        nn.Sigmoid())
-
-    def forward(self, img):
-        out = self.model(img)
-        out = out.view(out.shape[0], -1)
-        validity = self.adv_layer(out)
+    def forward(self, latent):
+        validity = self.model(latent)
 
         return validity
 
-# Loss function
+# Use binary cross-entropy loss
 adversarial_loss = torch.nn.BCELoss()
+pixelwise_loss = torch.nn.L1Loss()
 
 # Initialize generator and discriminator
-generator = Generator()
+encoder = Encoder()
+decoder = Decoder()
 discriminator = Discriminator()
 
 if cuda:
-    generator.cuda()
+    encoder.cuda()
+    decoder.cuda()
     discriminator.cuda()
     adversarial_loss.cuda()
+    pixelwise_loss.cuda()
 
 # Initialize weights
-generator.apply(weights_init_normal)
+encoder.apply(weights_init_normal)
+decoder.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
 
 # Configure data loader
@@ -127,10 +129,22 @@ mnist_loader = torch.utils.data.DataLoader(
     batch_size=opt.batch_size, shuffle=True)
 
 # Optimizers
-optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_G = torch.optim.Adam( itertools.chain(encoder.parameters(), decoder.parameters()),
+                                lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+
+def sample_image(n_row, epoch):
+    """Saves a grid of generated digits"""
+    # Sample noise
+    z = Variable(Tensor(np.random.normal(0, 1, (n_row**2, opt.latent_dim))))
+    gen_imgs = decoder(z)
+    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=n_row, normalize=True)
+
+# ----------
+#  Training
+# ----------
 
 for epoch in range(opt.n_epochs):
     for i, (imgs, _) in enumerate(mnist_loader):
@@ -150,14 +164,12 @@ for epoch in range(opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        # Sample noise as generator input
-        z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
-
-        # Generate a batch of images
-        gen_imgs = generator(z)
+        encoded_imgs = encoder(real_imgs)
+        decoded_imgs = decoder(encoded_imgs)
 
         # Loss measures generator's ability to fool the discriminator
-        g_loss = adversarial_loss(discriminator(gen_imgs), valid)
+        g_loss =    0.001 * adversarial_loss(discriminator(encoded_imgs), valid) + \
+                    0.999 * pixelwise_loss(decoded_imgs, real_imgs)
 
         g_loss.backward()
         optimizer_G.step()
@@ -168,9 +180,12 @@ for epoch in range(opt.n_epochs):
 
         optimizer_D.zero_grad()
 
+        # Sample noise as discriminator ground truth
+        z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
+
         # Measure discriminator's ability to classify real from generated samples
-        real_loss = adversarial_loss(discriminator(real_imgs), valid)
-        fake_loss = adversarial_loss(discriminator(gen_imgs.detach()), fake)
+        real_loss = adversarial_loss(discriminator(z), valid)
+        fake_loss = adversarial_loss(discriminator(encoded_imgs.detach()), fake)
         d_loss = 0.5 * (real_loss + fake_loss)
 
         d_loss.backward()
@@ -179,4 +194,4 @@ for epoch in range(opt.n_epochs):
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
                                                             d_loss.data.cpu().numpy()[0], g_loss.data.cpu().numpy()[0]))
 
-    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
+    sample_image(10, epoch)

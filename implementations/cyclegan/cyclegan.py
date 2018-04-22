@@ -42,6 +42,11 @@ parser.add_argument('--generator_type', type=str, default='resnet', help="'resne
 opt = parser.parse_args()
 print(opt)
 
+# Losses
+criterion_GAN = torch.nn.MSELoss()
+criterion_cycle = torch.nn.L1Loss()
+criterion_identity = torch.nn.L1Loss()
+
 cuda = True if torch.cuda.is_available() else False
 
 # Calculate output of image discriminator (PatchGAN)
@@ -59,6 +64,9 @@ if cuda:
     G_BA = G_BA.cuda()
     D_A = D_A.cuda()
     D_B = D_B.cuda()
+    criterion_GAN.cuda()
+    criterion_cycle.cuda()
+    criterion_identity.cuda()
 
 if opt.epoch != 0:
     # Load pretrained models
@@ -72,11 +80,6 @@ else:
     G_BA.apply(weights_init_normal)
     D_A.apply(weights_init_normal)
     D_B.apply(weights_init_normal)
-
-# Losses
-criterion_GAN = torch.nn.MSELoss()
-criterion_cycle = torch.nn.L1Loss()
-criterion_identity = torch.nn.L1Loss()
 
 # Loss weights
 lambda_cyc = 10
