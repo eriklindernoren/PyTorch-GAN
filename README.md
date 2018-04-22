@@ -33,7 +33,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
 ### AC-GAN
 Implementation of _Auxiliary Classifier Generative Adversarial Network_.
 
-[Code](acgan/acgan.py)
+[Code](implementations/acgan/acgan.py)
 
 Paper: https://arxiv.org/abs/1610.09585
 
@@ -46,7 +46,7 @@ $ python3 acgan.py
 ### Adversarial Autoencoder
 Implementation of _Adversarial Autoencoder_.
 
-[Code](aae/adversarial_autoencoder.py)
+[Code](implementations/aae/adversarial_autoencoder.py)
 
 Paper: https://arxiv.org/abs/1511.05644
 
@@ -60,7 +60,7 @@ $ python3 aae.py
 ### CC-GAN
 Implementation of _Semi-Supervised Learning with Context-Conditional Generative Adversarial Networks_.
 
-[Code](ccgan/ccgan.py)
+[Code](implementations/ccgan/ccgan.py)
 
 Paper: https://arxiv.org/abs/1611.06430
 
@@ -73,7 +73,7 @@ $ python3 ccgan.py
 ### CGAN
 Implementation of _Conditional Generative Adversarial Nets_.
 
-[Code](cgan/cgan.py)
+[Code](implementations/cgan/cgan.py)
 
 Paper:https://arxiv.org/abs/1411.1784
 
@@ -87,7 +87,7 @@ $ python3 cgan.py
 ### CycleGAN
 Implementation of _Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks_.
 
-[Code](cyclegan/cyclegan.py)
+[Code](implementations/cyclegan/cyclegan.py)
 
 Paper: https://arxiv.org/abs/1703.10593
 
@@ -106,7 +106,7 @@ $ python3 cyclegan.py
 ### DCGAN
 Implementation of _Deep Convolutional Generative Adversarial Network_.
 
-[Code](dcgan/dcgan.py)
+[Code](implementations/dcgan/dcgan.py)
 
 Paper: https://arxiv.org/abs/1511.06434
 
@@ -119,7 +119,7 @@ $ python3 dcgan.py
 ### GAN
 Implementation of _Generative Adversarial Network_ with a MLP generator and discriminator.
 
-[Code](gan/gan.py)
+[Code](implementations/gan/gan.py)
 
 Paper: https://arxiv.org/abs/1406.2661
 
@@ -132,7 +132,7 @@ $ python3 gan.py
 ### LSGAN
 Implementation of _Least Squares Generative Adversarial Networks_.
 
-[Code](lsgan/lsgan.py)
+[Code](implementations/lsgan/lsgan.py)
 
 Paper: https://arxiv.org/abs/1611.04076
 
@@ -145,7 +145,7 @@ $ python3 lsgan.py
 ### Pix2Pix
 Implementation of _Unpaired Image-to-Image Translation with Conditional Adversarial Networks_.
 
-[Code](pix2pix/pix2pix.py)
+[Code](implementations/pix2pix/pix2pix.py)
 
 Paper: https://arxiv.org/abs/1611.07004
 
@@ -164,7 +164,7 @@ $ python3 pix2pix.py
 ### SGAN
 Implementation of _Semi-Supervised Generative Adversarial Network_.
 
-[Code](sgan/sgan.py)
+[Code](implementations/sgan/sgan.py)
 
 Paper: https://arxiv.org/abs/1606.01583
 
@@ -177,7 +177,7 @@ $ python3 sgan.py
 ### SRGAN
 Implementation of _Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network_.
 
-[Code](srgan/srgan.py)
+[Code](implementations/srgan/srgan.py)
 
 Paper: https://arxiv.org/abs/1609.04802
 
@@ -195,7 +195,7 @@ $ python3 srgan.py
 ### WGAN
 Implementation of _Wasserstein GAN_ (with DCGAN generator and discriminator).
 
-[Code](wgan/wgan.py)
+[Code](implementations/wgan/wgan.py)
 
 Paper: https://arxiv.org/abs/1701.07875
 
