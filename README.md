@@ -33,11 +33,9 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
 
 ## Implementations   
 ### AC-GAN
-Implementation of _Auxiliary Classifier Generative Adversarial Network_.
+_Auxiliary Classifier Generative Adversarial Network_
 
-[Code](implementations/acgan/acgan.py)
-
-Paper: https://arxiv.org/abs/1610.09585
+[[Paper]](https://arxiv.org/abs/1610.09585) [[Code]](implementations/acgan/acgan.py)
 
 #### Example
 ```
@@ -46,11 +44,9 @@ $ python3 acgan.py
 ```
 
 ### Adversarial Autoencoder
-Implementation of _Adversarial Autoencoder_.
+_Adversarial Autoencoder_
 
-[Code](implementations/aae/adversarial_autoencoder.py)
-
-Paper: https://arxiv.org/abs/1511.05644
+[[Paper]](https://arxiv.org/abs/1511.05644) [[Code]](implementations/aae/adversarial_autoencoder.py)
 
 #### Example
 ```
@@ -59,11 +55,9 @@ $ python3 aae.py
 ```
 
 ### BGAN
-Implementation of _Boundary-Seeking Generative Adversarial Networks_.
+_Boundary-Seeking Generative Adversarial Networks_
 
-[Code](implementations/bgan/bgan.py)
-
-Paper: https://arxiv.org/abs/1702.08431
+[[Paper]](https://arxiv.org/abs/1702.08431) [[Code]](implementations/bgan/bgan.py)
 
 #### Example
 ```
@@ -73,11 +67,9 @@ $ python3 bgan.py
 
 
 ### CC-GAN
-Implementation of _Semi-Supervised Learning with Context-Conditional Generative Adversarial Networks_.
+_Semi-Supervised Learning with Context-Conditional Generative Adversarial Networks_
 
-[Code](implementations/ccgan/ccgan.py)
-
-Paper: https://arxiv.org/abs/1611.06430
+[[Paper]](https://arxiv.org/abs/1611.06430) [[Code]](implementations/ccgan/ccgan.py)
 
 #### Example
 ```
@@ -86,11 +78,9 @@ $ python3 ccgan.py
 ```
 
 ### CGAN
-Implementation of _Conditional Generative Adversarial Nets_.
+_Conditional Generative Adversarial Nets_
 
-[Code](implementations/cgan/cgan.py)
-
-Paper:https://arxiv.org/abs/1411.1784
+[[Paper]](https://arxiv.org/abs/1411.1784) [[Code]](implementations/cgan/cgan.py)
 
 #### Example
 ```
@@ -100,11 +90,9 @@ $ python3 cgan.py
 
 
 ### CycleGAN
-Implementation of _Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks_.
+_Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks_
 
-[Code](implementations/cyclegan/cyclegan.py)
-
-Paper: https://arxiv.org/abs/1703.10593
+[[Paper]](https://arxiv.org/abs/1703.10593) [[Code]](implementations/cyclegan/cyclegan.py)
 
 <p align="center">
     <img src="http://eriklindernoren.se/images/cyclegan.png" width="640"\>
@@ -119,11 +107,9 @@ $ python3 cyclegan.py
 ```   
 
 ### DCGAN
-Implementation of _Deep Convolutional Generative Adversarial Network_.
+_Deep Convolutional Generative Adversarial Network_
 
-[Code](implementations/dcgan/dcgan.py)
-
-Paper: https://arxiv.org/abs/1511.06434
+[[Paper]](https://arxiv.org/abs/1511.06434) [[Code]](implementations/dcgan/dcgan.py)
 
 #### Example
 ```
@@ -132,11 +118,9 @@ $ python3 dcgan.py
 ```
 
 ### DiscoGAN
-Implementation of _Learning to Discover Cross-Domain Relations with Generative Adversarial Networks_.
+_Learning to Discover Cross-Domain Relations with Generative Adversarial Networks_
 
-[Code](implementationsdiscogan/discogan.py)
-
-Paper: https://arxiv.org/abs/1703.05192
+[[Paper]](https://arxiv.org/abs/1703.05192) [[Code]](implementationsdiscogan/discogan.py)
 
 <p align="center">
     <img src="http://eriklindernoren.se/images/discogan_architecture.png" width="640"\>
@@ -152,11 +136,9 @@ $ python3 discogan.py
 
 
 ### GAN
-Implementation of _Generative Adversarial Network_ with a MLP generator and discriminator.
+_Generative Adversarial Network_ with a MLP generator and discriminator
 
-[Code](implementations/gan/gan.py)
-
-Paper: https://arxiv.org/abs/1406.2661
+[[Paper]](https://arxiv.org/abs/1406.2661) [[Code]](implementations/gan/gan.py)
 
 #### Example
 ```
@@ -165,11 +147,9 @@ $ python3 gan.py
 ```
 
 ### LSGAN
-Implementation of _Least Squares Generative Adversarial Networks_.
+_Least Squares Generative Adversarial Networks_
 
-[Code](implementations/lsgan/lsgan.py)
-
-Paper: https://arxiv.org/abs/1611.04076
+[[Paper]](https://arxiv.org/abs/1611.04076) [[Code]](implementations/lsgan/lsgan.py)
 
 #### Example
 ```
@@ -178,11 +158,9 @@ $ python3 lsgan.py
 ```
 
 ### Pix2Pix
-Implementation of _Unpaired Image-to-Image Translation with Conditional Adversarial Networks_.
+_Unpaired Image-to-Image Translation with Conditional Adversarial Networks_
 
-[Code](implementations/pix2pix/pix2pix.py)
-
-Paper: https://arxiv.org/abs/1611.07004
+[[Paper]](https://arxiv.org/abs/1611.07004) [[Code]](implementations/pix2pix/pix2pix.py)
 
 <p align="center">
     <img src="http://eriklindernoren.se/images/pix2pix_architecture.png" width="640"\>
@@ -197,11 +175,9 @@ $ python3 pix2pix.py
 ```  
 
 ### SGAN
-Implementation of _Semi-Supervised Generative Adversarial Network_.
+_Semi-Supervised Generative Adversarial Network_
 
-[Code](implementations/sgan/sgan.py)
-
-Paper: https://arxiv.org/abs/1606.01583
+[[Paper]](https://arxiv.org/abs/1606.01583) [[Code]](implementations/sgan/sgan.py)
 
 #### Example
 ```
@@ -210,11 +186,9 @@ $ python3 sgan.py
 ```
 
 ### SRGAN
-Implementation of _Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network_.
+_Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network_
 
-[Code](implementations/srgan/srgan.py)
-
-Paper: https://arxiv.org/abs/1609.04802
+[[Paper]](https://arxiv.org/abs/1609.04802) [[Code]](implementations/srgan/srgan.py)
 
 <p align="center">
     <img src="http://eriklindernoren.se/images/superresgan.png" width="640"\>
@@ -228,11 +202,9 @@ $ python3 srgan.py
 ```
 
 ### WGAN
-Implementation of _Wasserstein GAN_ (with DCGAN generator and discriminator).
+_Wasserstein GAN_ (with DCGAN generator and discriminator)
 
-[Code](implementations/wgan/wgan.py)
-
-Paper: https://arxiv.org/abs/1701.07875
+[[Paper]](https://arxiv.org/abs/1701.07875) [[Code]](implementations/wgan/wgan.py)
 
 #### Example
 ```
