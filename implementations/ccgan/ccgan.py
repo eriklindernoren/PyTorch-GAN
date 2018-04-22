@@ -70,9 +70,8 @@ cifar_loader = torch.utils.data.DataLoader(
                    ])),
     batch_size=opt.batch_size, shuffle=True)
 
-# Loss weights
+# Loss
 adversarial_loss = torch.nn.MSELoss()
-pixelwise_loss = torch.nn.L1Loss()
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
@@ -119,8 +118,7 @@ for epoch in range(opt.n_epochs):
         gen_imgs = generator(masked_imgs)
 
         # Loss measures generator's ability to fool the discriminator
-        g_loss = 0.001 * adversarial_loss(discriminator(gen_imgs), valid) + \
-                 0.999 * pixelwise_loss(gen_imgs, real_imgs)
+        g_loss = adversarial_loss(discriminator(gen_imgs), valid)
 
         g_loss.backward()
         optimizer_G.step()
