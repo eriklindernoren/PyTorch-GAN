@@ -47,11 +47,10 @@ class Generator(nn.Module):
 
         self.label_emb = nn.Embedding(opt.n_classes, opt.latent_dim)
 
-        self.init_size = opt.img_size // 4 # Initial size before upsampling
+        self.init_size = opt.img_size // 4
         self.l1 = nn.Sequential(nn.Linear(opt.latent_dim, 128*self.init_size**2))
 
-        cnn_layers = [  nn.BatchNorm2d(128),
-                        nn.Upsample(scale_factor=2),
+        cnn_layers = [  nn.Upsample(scale_factor=2),
                         nn.Conv2d(128, 128, 3, stride=1, padding=1),
                         nn.BatchNorm2d(128, 0.8),
                         nn.LeakyReLU(0.2, inplace=True),
@@ -62,21 +61,20 @@ class Generator(nn.Module):
                         nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
                         nn.Tanh() ]
 
-        self.conv_blocks = nn.Sequential(*cnn_layers)
+        self.model = nn.Sequential(*cnn_layers)
 
     def forward(self, noise, labels):
         gen_input = torch.mul(self.label_emb(labels), noise)
         out = self.l1(gen_input)
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
-        img = self.conv_blocks(out)
+        img = self.model(out)
         return img
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, bn):
-            """Returns layers of each discriminator block"""
+        def discriminator_block(in_filters, out_filters, bn=True):
             block = [   nn.Conv2d(in_filters, out_filters, 3, 2, 1),
                         nn.LeakyReLU(0.2, inplace=True),
                         nn.Dropout2d(0.25)]
@@ -85,29 +83,29 @@ class Discriminator(nn.Module):
             return block
 
         layers = []
-        in_filters = opt.channels
+        in_filters = opt.channels + 1
         for out_filters, bn in [(16, False), (32, True), (64, True), (128, False)]:
             layers.extend(discriminator_block(in_filters, out_filters, bn))
             in_filters = out_filters
 
-        self.conv_blocks = nn.Sequential(*layers)
+        self.model = nn.Sequential(*layers)
 
         # The height and width of downsampled image
         ds_size = opt.img_size // 2**4
-
-        # Output layers
         self.adv_layer = nn.Sequential( nn.Linear(out_filters*ds_size**2, 1),
                                         nn.Sigmoid())
-        self.aux_layer = nn.Sequential( nn.Linear(out_filters*ds_size**2, opt.n_classes),
-                                        nn.Softmax())
 
-    def forward(self, img):
-        out = self.conv_blocks(img)
-        out = out.view(out.shape[0], -1)
-        validity = self.adv_layer(out)
-        label = self.aux_layer(out)
+    def forward(self, img, labels):
+        # Extract label embedding
+        label_emb = nn.Embedding(opt.n_classes, opt.img_size**2)(labels)
+        label_emb = label_emb.view(label_emb.shape[0], 1, opt.img_size, opt.img_size)
+        # Concatenate label embedding and image by channels
+        d_input = torch.cat((label_emb, img), 1)
+        feature_repr = self.model(d_input)
+        feature_repr = feature_repr.view(feature_repr.shape[0], -1)
+        validity = self.adv_layer(feature_repr)
 
-        return validity, label
+        return validity
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -183,9 +181,8 @@ for epoch in range(opt.n_epochs):
         gen_imgs = generator(z, gen_labels)
 
         # Loss measures generator's ability to fool the discriminator
-        validity, pred_label = discriminator(gen_imgs)
-        g_loss = 0.5 * (adversarial_loss(validity, valid) + \
-                        auxiliary_loss(pred_label, gen_labels))
+        validity = discriminator(gen_imgs, gen_labels)
+        g_loss = adversarial_loss(validity, valid)
 
         g_loss.backward()
         optimizer_G.step()
@@ -197,28 +194,21 @@ for epoch in range(opt.n_epochs):
         optimizer_D.zero_grad()
 
         # Loss for real images
-        real_pred, real_aux = discriminator(real_imgs)
-        d_real_loss =  (adversarial_loss(real_pred, valid) + \
-                        auxiliary_loss(real_aux, labels)) / 2
+        validity_real = discriminator(real_imgs, labels)
+        d_real_loss = adversarial_loss(validity_real, valid)
 
         # Loss for fake images
-        fake_pred, fake_aux = discriminator(gen_imgs.detach())
-        d_fake_loss =  (adversarial_loss(fake_pred, fake) + \
-                        auxiliary_loss(fake_aux, gen_labels)) / 2
+        validity_fake = discriminator(gen_imgs.detach(), gen_labels)
+        d_fake_loss = adversarial_loss(validity_fake, fake)
 
         # Total discriminator loss
         d_loss = (d_real_loss + d_fake_loss) / 2
 
-        # Calculate discriminator accuracy
-        pred = np.concatenate([real_aux.data.cpu().numpy(), fake_aux.data.cpu().numpy()], axis=0)
-        gt = np.concatenate([labels.data.cpu().numpy(), gen_labels.data.cpu().numpy()], axis=0)
-        d_acc = np.mean(np.argmax(pred, axis=1) == gt)
-
         d_loss.backward()
         optimizer_D.step()
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %d%%] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
-                                                            d_loss.data.cpu().numpy()[0], 100 * d_acc,
+        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
+                                                            d_loss.data.cpu().numpy()[0],
                                                             g_loss.data.cpu().numpy()[0]))
 
     sample_image(n_row=10, epoch=epoch)
