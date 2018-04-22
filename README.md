@@ -13,6 +13,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
   * [Implementations](#implementations)
     + [Auxiliary Classifier GAN](#ac-gan)
     + [Adversarial Autoencoder](#adversarial-autoencoder)
+    + [Boundary-Seeking GAN](#bgan)
     + [Conditional GAN](#cgan)
     + [Context-Conditional GAN](#cc-gan)
     + [CycleGAN](#cyclegan)
@@ -55,6 +56,19 @@ Paper: https://arxiv.org/abs/1511.05644
 ```
 $ cd implementations/aae/
 $ python3 aae.py
+```
+
+### BGAN
+Implementation of _Boundary-Seeking Generative Adversarial Networks_.
+
+[Code](implementations/bgan/bgan.py)
+
+Paper: https://arxiv.org/abs/1702.08431
+
+#### Example
+```
+$ cd implementations/bgan/
+$ python3 bgan.py
 ```
 
 
