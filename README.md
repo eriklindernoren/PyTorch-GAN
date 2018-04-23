@@ -148,7 +148,7 @@ Image-to-image translation is a class of vision and graphics problems where the 
 $ cd data/
 $ bash download_cyclegan_dataset.sh apple2orange
 $ cd ../implementations/cyclegan/
-$ python3 cyclegan.py
+$ python3 cyclegan.py --dataset_name apple2orange
 ```
 
 <p align="center">
@@ -201,7 +201,7 @@ While humans easily recognize relations between data from different domains with
 $ cd data/
 $ bash download_pix2pix_dataset.sh edges2shoes
 $ cd ../implementations/discogan/
-$ python3 discogan.py
+$ python3 discogan.py --dataset_name edges2shoes
 ```
 
 ### DualGAN
@@ -218,8 +218,10 @@ Conditional Generative Adversarial Networks (GANs) for cross-domain image-to-ima
 
 #### Run Example
 ```
+$ cd data/
+$ bash download_pix2pix_dataset.sh facades
 $ cd ../implementations/dualgan/
-$ python3 dualgan.py
+$ python3 dualgan.py --dataset_name facades
 ```
 
 ### GAN
@@ -280,7 +282,7 @@ We investigate conditional adversarial networks as a general-purpose solution to
 $ cd data/
 $ bash download_pix2pix_dataset.sh facades
 $ cd ../implementations/pix2pix/
-$ python3 pix2pix.py
+$ python3 pix2pix.py --dataset_name facades
 ```
 
 <p align="center">
