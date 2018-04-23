@@ -29,7 +29,7 @@ parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality 
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--mask_size', type=int, default=8, help='size of random mask')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-parser.add_argument('--sample_interval', type=int, default=1000, help='interval between image sampling')
+parser.add_argument('--sample_interval', type=int, default=500, help='interval between image sampling')
 opt = parser.parse_args()
 print(opt)
 
@@ -141,5 +141,6 @@ for epoch in range(opt.n_epochs):
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(cifar_loader),
                                                             d_loss.data.cpu().numpy()[0], g_loss.data.cpu().numpy()[0]))
 
-    save_image(torch.cat((real_imgs.data, gen_imgs.data) -2),
-                'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
+        if i % opt.sample_interval == 0:
+            save_image(torch.cat((masked_imgs.data[:5], gen_imgs.data[:5], real_imgs.data[:5]), -2),
+                        'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
