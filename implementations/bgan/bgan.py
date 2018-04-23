@@ -102,7 +102,7 @@ discriminator = Discriminator()
 if cuda:
     generator.cuda()
     discriminator.cuda()
-    adversarial_loss.cuda()
+    discriminator_loss.cuda()
 
 # Initialize weights
 generator.apply(weights_init_normal)
@@ -171,6 +171,6 @@ for epoch in range(opt.n_epochs):
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
                                                             d_loss.data[0], g_loss.data[0]))
 
-        batches_done = epoch * len(dataloader) + i
+        batches_done = epoch * len(mnist_loader) + i
         if batches_done % opt.sample_interval == 0:
             save_image(gen_imgs.data[:25], 'images/%d.png' % batches_done, nrow=5, normalize=True)
