@@ -82,14 +82,14 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        layers = [  nn.Linear(opt.latent_dim, 512),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(512, 256),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(256, 1),
-                    nn.Sigmoid() ]
-
-        self.model = nn.Sequential(*layers)
+        self.model = nn.Sequential(
+            nn.Linear(opt.latent_dim, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
 
     def forward(self, latent):
         validity = self.model(latent)

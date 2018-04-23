@@ -2,6 +2,7 @@ import argparse
 import os
 import numpy as np
 import math
+import sys
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -12,6 +13,7 @@ from torch.autograd import Variable
 
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.autograd as autograd
 import torch
 
 os.makedirs('images', exist_ok=True)
@@ -26,7 +28,9 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
 parser.add_argument('--img_size', type=int, default=28, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-parser.add_argument('--sample_interval', type=int, default=1000, help='interval betwen image samples')
+parser.add_argument('--n_critic', type=int, default=5, help='number of training steps for discriminator per iter')
+parser.add_argument('--clip_value', type=float, default=0.01, help='lower and upper clip value for disc. weights')
+parser.add_argument('--sample_interval', type=int, default=1, help='interval betwen image samples')
 opt = parser.parse_args()
 print(opt)
 
@@ -34,7 +38,7 @@ cuda = True if torch.cuda.is_available() else False
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
+    if classname.find('Conv') != -1:
         m.weight.data.normal_(0.0, 0.02)
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
@@ -74,8 +78,7 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 1),
-            nn.Sigmoid()
+            nn.Linear(256, 1)
         )
 
     def forward(self, img):
@@ -84,8 +87,8 @@ class Discriminator(nn.Module):
 
         return validity
 
-# Loss function
-adversarial_loss = torch.nn.BCELoss()
+# Loss weight for gradient penalty
+lambda_gp = 10
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -94,7 +97,6 @@ discriminator = Discriminator()
 if cuda:
     generator.cuda()
     discriminator.cuda()
-    adversarial_loss.cuda()
 
 # Initialize weights
 generator.apply(weights_init_normal)
@@ -116,21 +118,77 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
+def compute_gradient_penalty(D, real_samples, fake_samples):
+    """Calculates the gradient penalty loss for WGAN GP"""
+    # Random weight term for interpolation between real and fake samples
+    alpha = Tensor(np.random.random(size=real_samples.shape))
+
+    # Get random interpolation between real and fake samples
+    interpolates = alpha * real_samples + ((1 - alpha) * fake_samples)
+
+    interpolates = Variable(interpolates, requires_grad=True)
+
+    d_interpolates = D(interpolates)
+
+    fake = Variable(Tensor(real_samples.shape[0], 1).fill_(1.0), requires_grad=False)
+
+    # Get gradient w.r.t. w.r.t. interpolates
+    gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
+                              grad_outputs=valid, create_graph=True, retain_graph=True,
+                              only_inputs=True)[0]
+
+    gradient_penalty = lambda_gp * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    return gradient_penalty
+
 # ----------
 #  Training
 # ----------
 
 for epoch in range(opt.n_epochs):
-    for i, (imgs, _) in enumerate(mnist_loader):
 
-        # Adversarial ground truths
-        valid = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
-        fake = Variable(Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
+    # Batch iterator
+    data_iter = iter(mnist_loader)
 
-        if cuda:
-            imgs = imgs.type(torch.cuda.FloatTensor)
+    for i in range(len(data_iter) // opt.n_critic):
+        # Train discriminator for n_critic times
+        for _ in range(opt.n_critic):
+            (imgs, _) = data_iter.next()
 
-        real_imgs = Variable(imgs)
+            # Adversarial ground truths
+            valid = Variable(Tensor(imgs.shape[0], 1).fill_(-1.0), requires_grad=False)
+            fake = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
+
+            if cuda:
+                imgs = imgs.type(torch.cuda.FloatTensor)
+
+            real_imgs = Variable(imgs)
+
+            # ---------------------
+            #  Train Discriminator
+            # ---------------------
+
+            optimizer_D.zero_grad()
+
+            # Sample noise as generator input
+            z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
+
+            # Generate a batch of images
+            fake_imgs = generator(z)
+
+            # Train on real images
+            real_validity = discriminator(real_imgs)
+            real_validity.backward(valid)
+            # Train on fake images
+            fake_validity = discriminator(fake_imgs)
+            fake_validity.backward(fake)
+
+            # Gradient penalty
+            gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data, fake_imgs.data)
+            gradient_penalty.backward()
+
+            d_loss = real_validity - fake_validity
+
+            optimizer_D.step()
 
         # -----------------
         #  Train Generator
@@ -145,26 +203,15 @@ for epoch in range(opt.n_epochs):
         gen_imgs = generator(z)
 
         # Loss measures generator's ability to fool the discriminator
-        g_loss = adversarial_loss(discriminator(gen_imgs), valid)
+        # Train on fake images
+        gen_validity = discriminator(fake_imgs)
+        gen_validity.backward(valid)
 
-        g_loss.backward()
         optimizer_G.step()
 
-        # ---------------------
-        #  Train Discriminator
-        # ---------------------
+        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs,
+                                                        i * opt.n_critic, len(mnist_loader),
+                                                        d_loss.data[0], gen_validity.data[0]))
 
-        optimizer_D.zero_grad()
-
-        # Measure discriminator's ability to classify real from generated samples
-        real_loss = adversarial_loss(discriminator(real_imgs), valid)
-        fake_loss = adversarial_loss(discriminator(gen_imgs.detach()), fake)
-        d_loss = (real_loss + fake_loss) / 2
-
-        d_loss.backward()
-        optimizer_D.step()
-
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
-                                                            d_loss.data[0], g_loss.data[0]))
-
-    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
+    if epoch % opt.sample_interval == 0:
+        save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)

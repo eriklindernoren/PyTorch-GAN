@@ -50,18 +50,18 @@ class Generator(nn.Module):
         self.init_size = opt.img_size // 4
         self.l1 = nn.Sequential(nn.Linear(opt.latent_dim, 128*self.init_size**2))
 
-        cnn_layers = [  nn.Upsample(scale_factor=2),
-                        nn.Conv2d(128, 128, 3, stride=1, padding=1),
-                        nn.BatchNorm2d(128, 0.8),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Upsample(scale_factor=2),
-                        nn.Conv2d(128, 64, 3, stride=1, padding=1),
-                        nn.BatchNorm2d(64, 0.8),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
-                        nn.Tanh() ]
-
-        self.model = nn.Sequential(*cnn_layers)
+        self.model = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 128, 3, stride=1, padding=1),
+            nn.BatchNorm2d(128, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(128, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64, 0.8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
+            nn.Tanh()
+        )
 
     def forward(self, noise, labels):
         gen_input = torch.mul(self.label_emb(labels), noise)
@@ -152,6 +152,10 @@ def sample_image(n_row, epoch):
     labels = Variable(LongTensor(labels))
     gen_imgs = generator(z, labels)
     save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=n_row, normalize=True)
+
+# ----------
+#  Training
+# ----------
 
 for epoch in range(opt.n_epochs):
     for i, (imgs, labels) in enumerate(mnist_loader):

@@ -155,6 +155,10 @@ def sample_image(n_row, epoch):
     gen_imgs = generator(z, labels)
     save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=n_row, normalize=True)
 
+# ----------
+#  Training
+# ----------
+
 for epoch in range(opt.n_epochs):
     for i, (imgs, labels) in enumerate(mnist_loader):
 
