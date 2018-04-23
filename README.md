@@ -124,6 +124,10 @@ $ cd implementations/cgan/
 $ python3 cgan.py
 ```
 
+<p align="center">
+    <img src="figures/cgan.gif" width="360"\>
+</p>
+
 ### CycleGAN
 _Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks_
 
