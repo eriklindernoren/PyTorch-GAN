@@ -11,24 +11,24 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
   * [Table of Contents](#table-of-contents)
   * [Installation](#installation)
   * [Implementations](#implementations)
-    + [Auxiliary Classifier GAN](#ac-gan)
+    + [Auxiliary Classifier GAN](#auxiliary-classifier-gan)
     + [Adversarial Autoencoder](#adversarial-autoencoder)
-    + [Boundary-Seeking GAN](#bgan)
-    + [Conditional GAN](#cgan)
-    + [Context-Conditional GAN](#cc-gan)
+    + [Boundary-Seeking GAN](#boundary-seeking-gan)
+    + [Conditional GAN](#conditional-gan)
+    + [Context-Conditional GAN](#context-conditional-gan)
     + [CycleGAN](#cyclegan)
-    + [Deep Convolutional GAN](#dcgan)
+    + [Deep Convolutional GAN](#deep-convolutional-gan)
     + [DiscoGAN](#discogan)
     + [DRAGAN](#dragan)
     + [DualGAN](#dualgan)
     + [GAN](#gan)
-    + [LSGAN](#lsgan)
+    + [LSGAN](#least-squares-gan)
     + [Pix2Pix](#pix2pix)
     + [PixelDA](#pixelda)
-    + [Semi-Supervised GAN](#sgan)
-    + [Super-Resolution GAN](#srgan)
-    + [Wasserstein GAN](#wgan)
-    + [Wasserstein GAN GP](#wgan-gp)
+    + [Semi-Supervised GAN](#semi-supervised-gan)
+    + [Super-Resolution GAN](#super-resolution-gan)
+    + [Wasserstein GAN](#wasserstein-gan)
+    + [Wasserstein GAN GP](#wasserstein-gan-gp)
 
 ## Installation
     $ git clone https://github.com/eriklindernoren/PyTorch-GAN
@@ -36,7 +36,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     $ sudo pip3 install -r requirements.txt
 
 ## Implementations   
-### AC-GAN
+### Auxiliary Classifier GAN
 _Auxiliary Classifier Generative Adversarial Network_
 
 #### Authors
@@ -74,7 +74,7 @@ $ cd implementations/aae/
 $ python3 aae.py
 ```
 
-### BGAN
+### Boundary-Seeking GAN
 _Boundary-Seeking Generative Adversarial Networks_
 
 #### Authors
@@ -91,7 +91,7 @@ $ cd implementations/bgan/
 $ python3 bgan.py
 ```
 
-### CC-GAN
+### Context-Conditional GAN
 _Semi-Supervised Learning with Context-Conditional Generative Adversarial Networks_
 
 #### Authors
@@ -108,7 +108,7 @@ $ cd implementations/ccgan/
 $ python3 ccgan.py
 ```
 
-### CGAN
+### Conditional GAN
 _Conditional Generative Adversarial Nets_
 
 #### Authors
@@ -161,7 +161,7 @@ $ python3 cyclegan.py --dataset_name apple2orange
     displays the reconstructed images.
 </p>
 
-### DCGAN
+### Deep Convolutional GAN
 _Deep Convolutional Generative Adversarial Network_
 
 #### Authors
@@ -263,7 +263,7 @@ $ python3 gan.py
     <img src="figures/gan.gif" width="240"\>
 </p>
 
-### LSGAN
+### Least Squares GAN
 _Least Squares Generative Adversarial Networks_
 
 #### Authors
@@ -344,7 +344,7 @@ $ python3 pixelda.py
     row shows examples of images from the MNIST-M domain.
 </p>
 
-### SGAN
+### Semi-Supervised GAN
 _Semi-Supervised Generative Adversarial Network_
 
 #### Authors
@@ -361,7 +361,7 @@ $ cd implementations/sgan/
 $ python3 sgan.py
 ```
 
-### SRGAN
+### Super-Resolution GAN
 _Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network_
 
 #### Authors
@@ -391,7 +391,7 @@ $ python3 srgan.py
     shows the full resolution image.
 </p>
 
-### WGAN
+### Wasserstein GAN
 _Wasserstein GAN_
 
 #### Authors
@@ -408,7 +408,7 @@ $ cd implementations/wgan/
 $ python3 wgan.py
 ```
 
-### WGAN-GP
+### Wasserstein GAN - GP
 _Improved Training of Wasserstein GANs_
 
 #### Authors
