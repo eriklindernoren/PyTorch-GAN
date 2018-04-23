@@ -84,8 +84,7 @@ class Discriminator(nn.Module):
             nn.Linear(512, 512),
             nn.Dropout(0.4),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 1),
-            nn.Sigmoid()
+            nn.Linear(512, 1)
         )
 
     def forward(self, img, labels):
@@ -96,7 +95,7 @@ class Discriminator(nn.Module):
         return validity
 
 # Loss functions
-adversarial_loss = torch.nn.BCELoss()
+adversarial_loss = torch.nn.MSELoss()
 auxiliary_loss = torch.nn.CrossEntropyLoss()
 
 # Initialize generator and discriminator
@@ -131,19 +130,16 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
-# In your for loop
-y_onehot.zero_()
-y_onehot.scatter_(1, y, 1)
 
-def sample_image(batches_done):
+def sample_image(n_row, batches_done):
     """Saves a grid of generated digits ranging from 0 to n_classes"""
     # Sample noise
-    z = Variable(FloatTensor(np.random.normal(0, 1, (10, opt.latent_dim))))
+    z = Variable(FloatTensor(np.random.normal(0, 1, (n_row**2, opt.latent_dim))))
     # Get labels ranging from 0 to n_classes for n rows
-    labels = np.arange(0, 10, 10)
+    labels = np.array([num for _ in range(n_row) for num in range(n_row)])
     labels = Variable(LongTensor(labels))
     gen_imgs = generator(z, labels)
-    save_image(gen_imgs.data, 'images/%d.png' % batches_done, nrow=5, normalize=True)
+    save_image(gen_imgs.data, 'images/%d.png' % batches_done, nrow=n_row, normalize=True)
 
 # ----------
 #  Training
@@ -210,4 +206,4 @@ for epoch in range(opt.n_epochs):
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
-            sample_image(batches_done=batches_done)
+            sample_image(n_row=10, batches_done=batches_done)
