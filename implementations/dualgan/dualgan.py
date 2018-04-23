@@ -11,6 +11,7 @@ from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
+import torch.autograd as autograd
 
 from datasets import *
 from models import *
@@ -60,6 +61,7 @@ cycle_loss = torch.nn.L1Loss()
 # Loss weights
 lambda_adv = 1
 lambda_cycle = 100
+lambda_gp = 10
 
 # Initialize generator and discriminator
 G_AB = Generator(opt.channels)
@@ -95,6 +97,28 @@ optimizer_D_B = torch.optim.Adam(D_B.parameters(), lr=opt.lr, betas=(opt.b1, opt
 
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
+
+def compute_gradient_penalty(D, real_samples, fake_samples):
+    """Calculates the gradient penalty loss for WGAN GP"""
+    # Random weight term for interpolation between real and fake samples
+    alpha = FloatTensor(np.random.random(size=real_samples.shape))
+
+    # Get random interpolation between real and fake samples
+    interpolates = alpha * real_samples + ((1 - alpha) * fake_samples)
+
+    interpolates = Variable(interpolates, requires_grad=True)
+
+    d_interpolates = D(interpolates)
+
+    fake = Variable(FloatTensor(real_samples.shape[0], *patch).fill_(1.0), requires_grad=False)
+
+    # Get gradient w.r.t. interpolates
+    gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
+                              grad_outputs=fake, create_graph=True, retain_graph=True,
+                              only_inputs=True)[0]
+
+    gradient_penalty = lambda_gp * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    return gradient_penalty
 
 # ----------
 #  Training
@@ -142,6 +166,9 @@ for epoch in range(opt.n_epochs):
             fake_validity_A = D_A(fake_A)
             fake_validity_A.backward(fake)
 
+            gp_A = compute_gradient_penalty(D_A, imgs_A.data, fake_A.data)
+            gp_A.backward()
+
             #----------
             # Domain B
             #----------
@@ -150,6 +177,9 @@ for epoch in range(opt.n_epochs):
             real_validity_B.backward(valid)
             fake_validity_B = D_B(fake_B)
             fake_validity_B.backward(fake)
+
+            gp_B = compute_gradient_penalty(D_B, imgs_B.data, fake_B.data)
+            gp_B.backward()
 
             # Total loss
             D_A_loss = real_validity_A - fake_validity_A
