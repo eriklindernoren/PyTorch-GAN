@@ -45,10 +45,10 @@ class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
-        self.label_emb = nn.Embedding(opt.n_classes, opt.latent_dim)
+        self.label_emb = nn.Embedding(opt.n_classes, opt.n_classes)
 
         self.model = nn.Sequential(
-            nn.Linear(opt.latent_dim, 128),
+            nn.Linear(opt.latent_dim+opt.n_classes, 128),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(128, 256),
             nn.BatchNorm1d(256),
@@ -64,8 +64,10 @@ class Generator(nn.Module):
         )
 
     def forward(self, noise, labels):
-        gen_input = torch.mul(self.label_emb(labels), noise)
+        # Concatenate label embedding and image to produce input
+        gen_input = torch.cat((self.label_emb(labels), noise), -1)
         img = self.model(gen_input)
+        # Reshape to image shape
         img = img.view(img.size(0), opt.channels, opt.img_size, opt.img_size)
         return img
 
@@ -88,7 +90,7 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, img, labels):
-        # Concatenate label embedding and image by channels
+        # Concatenate label embedding and image to produce input
         d_input = torch.cat((img.view(img.size(0), -1), self.label_embedding(labels)), -1)
         validity = self.model(d_input)
 
@@ -201,8 +203,7 @@ for epoch in range(opt.n_epochs):
         optimizer_D.step()
 
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(dataloader),
-                                                            d_loss.data.cpu().numpy()[0],
-                                                            g_loss.data.cpu().numpy()[0]))
+                                                            d_loss.data[0], g_loss.data[0]))
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
