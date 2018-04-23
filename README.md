@@ -408,7 +408,7 @@ $ cd implementations/wgan/
 $ python3 wgan.py
 ```
 
-### Wasserstein GAN - GP
+### Wasserstein GAN-GP
 _Improved Training of Wasserstein GANs_
 
 #### Authors
