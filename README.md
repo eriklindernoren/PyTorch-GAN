@@ -53,7 +53,7 @@ $ python3 acgan.py
 ```
 
 <p align="center">
-    <img src="figures/acgan.gif" width="640"\>
+    <img src="figures/acgan.gif" width="360"\>
 </p>
 <p align="center">
     Figure: Samples generated during training.
@@ -139,7 +139,7 @@ Image-to-image translation is a class of vision and graphics problems where the 
 [[Paper]](https://arxiv.org/abs/1703.10593) [[Code]](implementations/cyclegan/cyclegan.py)
 
 <p align="center">
-    <img src="http://eriklindernoren.se/images/cyclegan.png" width="640"\>
+    <img src="http://eriklindernoren.se/images/cyclegan.png" width="400"\>
 </p>
 
 #### Run Example
@@ -151,7 +151,7 @@ $ python3 cyclegan.py
 ```
 
 <p align="center">
-    <img src="figures/cyclegan.png" width="640"\>
+    <img src="figures/cyclegan.png" width="240"\>
 </p>
 <p align="center">
     Figure: First row displays the original images from both domains. The <br>
@@ -177,7 +177,7 @@ $ python3 dcgan.py
 ```
 
 <p align="center">
-    <img src="figures/dcgan.gif" width="640"\>
+    <img src="figures/dcgan.gif" width="240"\>
 </p>
 
 ### DiscoGAN
@@ -240,7 +240,7 @@ $ python3 gan.py
 ```
 
 <p align="center">
-    <img src="figures/gan.gif" width="640"\>
+    <img src="figures/gan.gif" width="240"\>
 </p>
 <p align="center">
     Figure: Samples generated during training.
@@ -287,7 +287,7 @@ $ python3 pix2pix.py
 ```
 
 <p align="center">
-    <img src="figures/pix2pix.png" width="640"\>
+    <img src="figures/pix2pix.png" width="240"\>
 </p>
 <p align="center">
     Figure: Top row shows the condition for the generator and the second row <br>
@@ -358,7 +358,7 @@ $ python3 srgan.py
 ```
 
 <p align="center">
-    <img src="figures/srgan.png" width="640"\>
+    <img src="figures/srgan.png" width="240"\>
 </p>
 <p align="center">
     Figure: First row is produced by Super-resolution GAN. The second row <br>
@@ -400,5 +400,8 @@ $ python3 wgan_gp.py
 ```
 
 <p align="center">
-    <img src="figures/wgan_gp.gif" width="640"\>
+    <img src="figures/wgan_gp.gif" width="240"\>
+</p>
+<p align="center">
+    Figure: Samples generated during training.
 </p>
