@@ -19,6 +19,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     + [CycleGAN](#cyclegan)
     + [Deep Convolutional GAN](#dcgan)
     + [DiscoGAN](#discogan)
+    + [DualGAN](#dualgan)
     + [Generative Adversarial Network](#gan)
     + [LSGAN](#lsgan)
     + [Pix2Pix](#pix2pix)
@@ -168,7 +169,7 @@ Taeksoo Kim, Moonsu Cha, Hyunsoo Kim, Jung Kwon Lee, Jiwon Kim
 #### Abstract
 While humans easily recognize relations between data from different domains without any supervision, learning to automatically discover them is in general very challenging and needs many ground-truth pairs that illustrate the relations. To avoid costly pairing, we address the task of discovering cross-domain relations given unpaired data. We propose a method based on generative adversarial networks that learns to discover relations between different domains (DiscoGAN). Using the discovered relations, our proposed network successfully transfers style from one domain to another while preserving key attributes such as orientation and face identity.
 
-[[Paper]](https://arxiv.org/abs/1703.05192) [[Code]](implementationsdiscogan/discogan.py)
+[[Paper]](https://arxiv.org/abs/1703.05192) [[Code]](implementations/discogan/discogan.py)
 
 <p align="center">
     <img src="http://eriklindernoren.se/images/discogan_architecture.png" width="640"\>
@@ -180,6 +181,24 @@ $ cd data/
 $ bash download_pix2pix_dataset.sh edges2shoes
 $ cd ../implementations/discogan/
 $ python3 discogan.py
+```
+
+### DualGAN
+_DualGAN: Unsupervised Dual Learning for Image-to-Image Translation_
+
+#### Authors
+Zili Yi, Hao Zhang, Ping Tan, Minglun Gong
+
+#### Abstract
+Conditional Generative Adversarial Networks (GANs) for cross-domain image-to-image translation have made much progress recently. Depending on the task complexity, thousands to millions of labeled image pairs are needed to train a conditional GAN. However, human labeling is expensive, even impractical, and large quantities of data may not always be available. Inspired by dual learning from natural language translation, we develop a novel dual-GAN mechanism, which enables image translators to be trained from two sets of unlabeled images from two domains. In our architecture, the primal GAN learns to translate images from domain U to those in domain V, while the dual GAN learns to invert the task. The closed loop made by the primal and dual tasks allows images from either domain to be translated and then reconstructed. Hence a loss function that accounts for the reconstruction error of images can be used to train the translators. Experiments on multiple image translation tasks with unlabeled data show considerable performance gain of DualGAN over a single GAN. For some tasks, DualGAN can even achieve comparable or slightly better results than conditional GAN trained on fully labeled data.
+
+[[Paper]](https://arxiv.org/abs/1704.02510) [[Code]](implementations/dualgan/dualgan.py)
+
+
+#### Run Example
+```
+$ cd ../implementations/dualgan/
+$ python3 dualgan.py
 ```
 
 

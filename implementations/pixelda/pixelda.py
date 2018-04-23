@@ -26,8 +26,8 @@ parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rat
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--n_residual_blocks', type=int, default=9, help='number of residual blocks in generator')
-parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
+parser.add_argument('--n_residual_blocks', type=int, default=6, help='number of residual blocks in generator')
+parser.add_argument('--latent_dim', type=int, default=10, help='dimensionality of the noise input')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--n_classes', type=int, default=10, help='number of classes in the dataset')
@@ -68,7 +68,10 @@ class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
-        self.l1 = nn.Sequential(nn.Conv2d(opt.channels, 64, 3, 1, 1), nn.ReLU(inplace=True))
+        # Fully-connected layer which constructs image channel shaped output from noise
+        self.fc = nn.Linear(opt.latent_dim, opt.channels*opt.img_size**2)
+
+        self.l1 = nn.Sequential(nn.Conv2d(opt.channels*2, 64, 3, 1, 1), nn.ReLU(inplace=True))
 
         resblocks = []
         for _ in range(opt.n_residual_blocks):
@@ -78,8 +81,9 @@ class Generator(nn.Module):
         self.l2 = nn.Sequential(nn.Conv2d(64, opt.channels, 3, 1, 1), nn.Tanh())
 
 
-    def forward(self, img):
-        out = self.l1(img)
+    def forward(self, img, z):
+        gen_input = torch.cat((img, self.fc(z).view(*img.shape)), 1)
+        out = self.l1(gen_input)
         out = self.resblocks(out)
         img_ = self.l2(out)
 
@@ -145,6 +149,10 @@ class Classifier(nn.Module):
 # Loss function
 adversarial_loss = torch.nn.MSELoss()
 task_loss = torch.nn.CrossEntropyLoss()
+
+# Loss weights
+lambda_adv =  1
+lambda_task = 0.1
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -219,15 +227,22 @@ for epoch in range(opt.n_epochs):
 
         optimizer_G.zero_grad()
 
+        # Sample noise
+        z = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.latent_dim))))
+
         # Generate a batch of images
-        fake_B = generator(imgs_A)
+        fake_B = generator(imgs_A, z)
 
         # Perform task on translated source image
         label_pred = classifier(fake_B)
 
+        # Calculate the task loss
+        task_loss_ =    (task_loss(label_pred, labels_A) + \
+                        task_loss(classifier(imgs_A), labels_A)) / 2
+
         # Loss measures generator's ability to fool the discriminator
-        g_loss =    adversarial_loss(discriminator(fake_B), valid) + \
-                    task_loss(label_pred, labels_A)
+        g_loss =    lambda_adv * adversarial_loss(discriminator(fake_B), valid) + \
+                    lambda_task * task_loss_
 
         g_loss.backward()
         optimizer_G.step()
@@ -270,6 +285,7 @@ for epoch in range(opt.n_epochs):
                                                             100*acc, 100*np.mean(task_performance),
                                                             100*target_acc, 100*np.mean(target_performance)))
 
-        if i % opt.sample_interval == 0:
+        batches_done = len(dataloader_A) * epoch + i
+        if batches_done % opt.sample_interval == 0:
             sample = torch.cat((imgs_A.data[:5], fake_B.data[:5], imgs_B.data[:5]), -2)
-            save_image(sample, 'images/%d.png' % epoch, nrow=int(math.sqrt(batch_size)), normalize=True)
+            save_image(sample, 'images/%d.png' % batches_done, nrow=int(math.sqrt(batch_size)), normalize=True)
