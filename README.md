@@ -311,6 +311,15 @@ $ python3 pixelda.py
 | Naive        | 55%       |
 | PixelDA      | 95%       |
 
+<p align="center">
+    <img src="figures/pixelda.png" width="480"\>
+</p>
+<p align="center">
+    Figure: Top row shows the original images from the MNIST domain. The middle row <br>
+    displays the translated versions of the images in the top row. The bottom <br>
+    row shows examples of images from the MNIST-M domain.
+</p>
+
 ### SGAN
 _Semi-Supervised Generative Adversarial Network_
 
