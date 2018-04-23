@@ -33,8 +33,8 @@ parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of firs
 parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
-parser.add_argument('--img_height', type=int, default=256, help='size of image height')
-parser.add_argument('--img_width', type=int, default=256, help='size of image width')
+parser.add_argument('--img_height', type=int, default=128, help='size of image height')
+parser.add_argument('--img_width', type=int, default=128, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=100, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
@@ -50,7 +50,7 @@ pixelwise_loss = torch.nn.L1Loss()
 cuda = True if torch.cuda.is_available() else False
 
 # Calculate output of image discriminator (PatchGAN)
-patch_h, patch_w = int(opt.img_height / 2**3), int(opt.img_width / 2**3)
+patch_h, patch_w = int(opt.img_height / 2**4), int(opt.img_width / 2**4)
 patch = (opt.batch_size, 1, patch_h, patch_w)
 
 # Initialize generator and discriminator
@@ -81,10 +81,6 @@ else:
     D_A.apply(weights_init_normal)
     D_B.apply(weights_init_normal)
 
-# Loss weights
-lambda_cyc = 10
-lambda_id = 0.0 * lambda_cyc
-
 # Optimizers
 optimizer_G = torch.optim.Adam(itertools.chain(G_AB.parameters(), G_BA.parameters()),
                                 lr=opt.lr, betas=(opt.b1, opt.b2))
@@ -109,13 +105,12 @@ fake_A_buffer = ReplayBuffer()
 fake_B_buffer = ReplayBuffer()
 
 # Dataset loader
-transforms_ = [ transforms.Resize(int(opt.img_height*1.12), Image.BICUBIC),
-                transforms.RandomCrop((opt.img_height, opt.img_width)),
-                transforms.RandomHorizontalFlip(),
+transforms_ = [ transforms.Resize((opt.img_height, opt.img_width*2), Image.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
-dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, unaligned=True),
+dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
                         batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+
 
 
 # Progress logger
@@ -137,12 +132,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # ------------------
 
         optimizer_G.zero_grad()
-
-        # Identity loss
-        loss_id_B = criterion_identity(G_AB(real_B), real_B)
-        loss_id_A = criterion_identity(G_BA(real_A), real_A)
-
-        loss_identity = (loss_id_A + loss_id_B) / 2
 
         # GAN loss
         fake_B = G_AB(real_A)
@@ -166,9 +155,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
 
         # Total loss
-        loss_G =    loss_GAN + \
-                    lambda_cyc * loss_cycle + \
-                    lambda_trans * loss_pixelwise
+        loss_G = loss_GAN + loss_cycle + loss_pixelwise
 
         loss_G.backward()
         optimizer_G.step()

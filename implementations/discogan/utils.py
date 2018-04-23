@@ -49,7 +49,9 @@ class Logger():
         sys.stdout.write('ETA: %s' % (datetime.timedelta(seconds=batches_left*self.mean_period/self.batches_done)))
 
         # Save image sample
-        image_sample = torch.cat((images['real_B'].data, images['fake_A'].data, images['real_A'].data), -2)
+        image_sample_A = torch.cat((images['real_A'].data, images['fake_B'].data, images['recov_A'].data), -2)
+        image_sample_B = torch.cat((images['real_B'].data, images['fake_A'].data, images['recov_B'].data), -2)
+        image_sample = torch.cat((image_sample_A, image_sample_B), -2)
         self.past_images.append(image_sample)
         if len(self.past_images) > self.n_samples:
             self.past_images.pop(0)
