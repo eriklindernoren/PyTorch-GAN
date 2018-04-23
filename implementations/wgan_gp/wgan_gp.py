@@ -132,9 +132,9 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
 
     fake = Variable(Tensor(real_samples.shape[0], 1).fill_(1.0), requires_grad=False)
 
-    # Get gradient w.r.t. w.r.t. interpolates
+    # Get gradient w.r.t. interpolates
     gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
-                              grad_outputs=valid, create_graph=True, retain_graph=True,
+                              grad_outputs=fake, create_graph=True, retain_graph=True,
                               only_inputs=True)[0]
 
     gradient_penalty = lambda_gp * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
