@@ -55,9 +55,6 @@ $ python3 acgan.py
 <p align="center">
     <img src="figures/acgan.gif" width="360"\>
 </p>
-<p align="center">
-    Figure: Samples generated during training.
-</p>
 
 ### Adversarial Autoencoder
 _Adversarial Autoencoder_
@@ -139,7 +136,7 @@ Image-to-image translation is a class of vision and graphics problems where the 
 [[Paper]](https://arxiv.org/abs/1703.10593) [[Code]](implementations/cyclegan/cyclegan.py)
 
 <p align="center">
-    <img src="http://eriklindernoren.se/images/cyclegan.png" width="400"\>
+    <img src="http://eriklindernoren.se/images/cyclegan.png" width="640"\>
 </p>
 
 #### Run Example
@@ -221,7 +218,6 @@ $ cd ../implementations/dualgan/
 $ python3 dualgan.py
 ```
 
-
 ### GAN
 _Generative Adversarial Network_
 
@@ -241,9 +237,6 @@ $ python3 gan.py
 
 <p align="center">
     <img src="figures/gan.gif" width="240"\>
-</p>
-<p align="center">
-    Figure: Samples generated during training.
 </p>
 
 ### LSGAN
@@ -287,7 +280,7 @@ $ python3 pix2pix.py
 ```
 
 <p align="center">
-    <img src="figures/pix2pix.png" width="240"\>
+    <img src="figures/pix2pix.png" width="480"\>
 </p>
 <p align="center">
     Figure: Top row shows the condition for the generator and the second row <br>
@@ -401,7 +394,4 @@ $ python3 wgan_gp.py
 
 <p align="center">
     <img src="figures/wgan_gp.gif" width="240"\>
-</p>
-<p align="center">
-    Figure: Samples generated during training.
 </p>
