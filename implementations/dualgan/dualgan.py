@@ -30,7 +30,6 @@ parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rat
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--n_residual_blocks', type=int, default=9, help='number of residual blocks in generator')
 parser.add_argument('--img_size', type=int, default=128, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--n_critic', type=int, default=5, help='number of training steps for discriminator per iter')
@@ -64,8 +63,8 @@ lambda_cycle = 100
 lambda_gp = 10
 
 # Initialize generator and discriminator
-G_AB = Generator(opt.channels)
-G_BA = Generator(opt.channels)
+G_AB = Generator()
+G_BA = Generator()
 D_A = Discriminator(img_shape)
 D_B = Discriminator(img_shape)
 
@@ -187,11 +186,6 @@ for epoch in range(opt.n_epochs):
 
             optimizer_D_A.step()
             optimizer_D_B.step()
-
-            # Clip weights of discriminators
-            for d in [D_A, D_B]:
-                for p in d.parameters():
-                    p.data.clamp_(-opt.clip_value, opt.clip_value)
 
         # ------------------
         #  Train Generators
