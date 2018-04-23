@@ -52,6 +52,13 @@ $ cd implementations/acgan/
 $ python3 acgan.py
 ```
 
+<p align="center">
+    <img src="figures/acgan.gif" width="640"\>
+</p>
+<p align="center">
+    Figure: Samples generated during training.
+</p>
+
 ### Adversarial Autoencoder
 _Adversarial Autoencoder_
 
@@ -141,7 +148,16 @@ $ cd data/
 $ bash download_cyclegan_dataset.sh apple2orange
 $ cd ../implementations/cyclegan/
 $ python3 cyclegan.py
-```   
+```
+
+<p align="center">
+    <img src="figures/cyclegan.png" width="640"\>
+</p>
+<p align="center">
+    Figure: First row displays the original images from both domains. The <br>
+    second row shows the translated versions of both images and the third row <br>
+    displays the reconstructed images.
+</p>
 
 ### DCGAN
 _Deep Convolutional Generative Adversarial Network_
@@ -159,6 +175,10 @@ In recent years, supervised learning with convolutional networks (CNNs) has seen
 $ cd implementations/dcgan/
 $ python3 dcgan.py
 ```
+
+<p align="center">
+    <img src="figures/dcgan.gif" width="640"\>
+</p>
 
 ### DiscoGAN
 _Learning to Discover Cross-Domain Relations with Generative Adversarial Networks_
@@ -219,6 +239,13 @@ $ cd implementations/gan/
 $ python3 gan.py
 ```
 
+<p align="center">
+    <img src="figures/gan.gif" width="640"\>
+</p>
+<p align="center">
+    Figure: Samples generated during training.
+</p>
+
 ### LSGAN
 _Least Squares Generative Adversarial Networks_
 
@@ -258,6 +285,15 @@ $ bash download_pix2pix_dataset.sh facades
 $ cd ../implementations/pix2pix/
 $ python3 pix2pix.py
 ```
+
+<p align="center">
+    <img src="figures/pix2pix.png" width="640"\>
+</p>
+<p align="center">
+    Figure: Top row shows the condition for the generator and the second row <br>
+    shows its output. The third row display the true corresponding image to the <br>
+    condition.
+</p>
 
 ### PixelDA
 _Unsupervised Pixel-Level Domain Adaptation with Generative Adversarial Networks_
@@ -321,6 +357,14 @@ $ cd implementations/srgan/
 $ python3 srgan.py
 ```
 
+<p align="center">
+    <img src="figures/srgan.png" width="640"\>
+</p>
+<p align="center">
+    Figure: First row is produced by Super-resolution GAN. The second row <br>
+    shows the full resolution image.
+</p>
+
 ### WGAN
 _Wasserstein GAN_
 
@@ -354,3 +398,7 @@ Generative Adversarial Networks (GANs) are powerful generative models, but suffe
 $ cd implementations/wgan_gp/
 $ python3 wgan_gp.py
 ```
+
+<p align="center">
+    <img src="figures/wgan_gp.gif" width="640"\>
+</p>

@@ -108,7 +108,7 @@ class ResidualBlock(nn.Module):
         return x + self.conv_block(x)
 
 class GeneratorResNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, n_residual_blocks=9):
+    def __init__(self, in_channels=3, out_channels=3, resblocks=9):
         super(GeneratorResNet, self).__init__()
 
         # Initial convolution block
@@ -128,7 +128,7 @@ class GeneratorResNet(nn.Module):
             out_features = in_features*2
 
         # Residual blocks
-        for _ in range(n_residual_blocks):
+        for _ in range(resblocks):
             model += [ResidualBlock(in_features)]
 
         # Upsampling

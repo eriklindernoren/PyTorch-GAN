@@ -27,7 +27,7 @@ parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality 
 parser.add_argument('--n_classes', type=int, default=10, help='number of classes for dataset')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-parser.add_argument('--sample_interval', type=int, default=1000, help='interval between image sampling')
+parser.add_argument('--sample_interval', type=int, default=400, help='interval between image sampling')
 opt = parser.parse_args()
 print(opt)
 
@@ -129,7 +129,7 @@ discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs('../../data/mnist', exist_ok=True)
-mnist_loader = torch.utils.data.DataLoader(
+dataloader = torch.utils.data.DataLoader(
     datasets.MNIST('../../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
                         transforms.Resize(opt.img_size),
@@ -145,7 +145,7 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
-def sample_image(n_row, epoch):
+def sample_image(n_row, batches_done):
     """Saves a grid of generated digits ranging from 0 to n_classes"""
     # Sample noise
     z = Variable(FloatTensor(np.random.normal(0, 1, (n_row**2, opt.latent_dim))))
@@ -153,14 +153,14 @@ def sample_image(n_row, epoch):
     labels = np.array([num for _ in range(n_row) for num in range(n_row)])
     labels = Variable(LongTensor(labels))
     gen_imgs = generator(z, labels)
-    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=n_row, normalize=True)
+    save_image(gen_imgs.data, 'images/%d.png' % batches_done, nrow=n_row, normalize=True)
 
 # ----------
 #  Training
 # ----------
 
 for epoch in range(opt.n_epochs):
-    for i, (imgs, labels) in enumerate(mnist_loader):
+    for i, (imgs, labels) in enumerate(dataloader):
 
         batch_size = imgs.shape[0]
 
@@ -223,8 +223,9 @@ for epoch in range(opt.n_epochs):
         d_loss.backward()
         optimizer_D.step()
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %d%%] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
+        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %d%%] [G loss: %f]" % (epoch, opt.n_epochs, i, len(dataloader),
                                                             d_loss.data.cpu().numpy()[0], 100 * d_acc,
                                                             g_loss.data.cpu().numpy()[0]))
-
-    sample_image(n_row=10, epoch=epoch)
+        batches_done = epoch * len(dataloader) + i
+        if batches_done % opt.sample_interval == 0:
+            sample_image(n_row=10, batches_done=batches_done)

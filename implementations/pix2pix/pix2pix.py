@@ -32,12 +32,13 @@ parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first 
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--img_height', type=int, default=256, help='size of image height')
-parser.add_argument('--img_width', type=int, default=256, help='size of image width')
+parser.add_argument('--img_height', type=int, default=128, help='size of image height')
+parser.add_argument('--img_width', type=int, default=128, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=500, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
 parser.add_argument('--generator_type', type=str, default='unet', help="'resnet' or 'unet'")
+parser.add_argument('--n_residual_blocks', type=int, default=6, help='number of residual blocks in resnet generator')
 opt = parser.parse_args()
 print(opt)
 
@@ -52,7 +53,7 @@ patch_h, patch_w = int(opt.img_height / 2**4), int(opt.img_width / 2**4)
 patch = (opt.batch_size, 1, patch_h, patch_w)
 
 # Initialize generator and discriminator
-generator = GeneratorResNet() if opt.generator_type == 'resnet' else GeneratorUNet()
+generator = GeneratorResNet(resblocks=opt.n_residual_blocks) if opt.generator_type == 'resnet' else GeneratorUNet()
 discriminator = Discriminator()
 
 if cuda:
@@ -88,9 +89,6 @@ input_B = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
 # Adversarial ground truths
 valid = Variable(Tensor(np.ones(patch)), requires_grad=False)
 fake = Variable(Tensor(np.zeros(patch)), requires_grad=False)
-
-# Buffers of previously generated samples
-fake_A_buffer = ReplayBuffer()
 
 # Dataset loader
 transforms_ = [ transforms.Resize((opt.img_height, opt.img_width*2), Image.BICUBIC),
@@ -149,7 +147,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Total loss
         loss_D = 0.5 * (loss_real + loss_fake)
-        
+
         loss_D.backward()
         optimizer_D.step()
 

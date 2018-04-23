@@ -16,7 +16,7 @@ def tensor2image(tensor):
     return image.astype(np.uint8)
 
 class Logger():
-    def __init__(self, n_epochs, batches_epoch, sample_interval):
+    def __init__(self, n_epochs, batches_epoch, sample_interval, n_samples=5):
         self.n_epochs = n_epochs
         self.batches_epoch = batches_epoch
         self.sample_interval = sample_interval
@@ -24,6 +24,8 @@ class Logger():
         self.prev_time = time.time()
         self.mean_period = 0
         self.losses = {}
+        self.n_samples = n_samples
+        self.past_images = []
 
     def log(self, losses=None, images=None, epoch=0, batch=0):
         self.mean_period += (time.time() - self.prev_time)
@@ -45,8 +47,16 @@ class Logger():
         batches_left = self.batches_epoch*(self.n_epochs - epoch) + self.batches_epoch - batch
         sys.stdout.write('ETA: %s' % (datetime.timedelta(seconds=batches_left*self.mean_period/self.batches_done)))
 
+        # Save image sample
+        image_sample = torch.cat((images['real_B'].data, images['fake_A'].data, images['real_A'].data), -2)
+        self.past_images.append(image_sample)
+        if len(self.past_images) > self.n_samples:
+            self.past_images.pop(0)
+
+
+        # If at sample interval save past samples
         if self.batches_done % self.sample_interval == 0 and images is not None:
-            save_image(torch.cat((images['real_B'].data, images['fake_A'].data, images['real_A'].data), -2),
+            save_image(torch.cat(self.past_images, -1),
                         './images/%d.png' % self.batches_done,
                         normalize=True)
 

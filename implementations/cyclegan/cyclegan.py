@@ -25,7 +25,7 @@ os.makedirs('saved_models', exist_ok=True)
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
-parser.add_argument('--dataset_name', type=str, default="horse2zebra", help='name of the dataset')
+parser.add_argument('--dataset_name', type=str, default="apple2orange", help='name of the dataset')
 parser.add_argument('--batch_size', type=int, default=1, help='size of the batches')
 parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
@@ -33,12 +33,13 @@ parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of firs
 parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
-parser.add_argument('--img_height', type=int, default=256, help='size of image height')
-parser.add_argument('--img_width', type=int, default=256, help='size of image width')
+parser.add_argument('--img_height', type=int, default=128, help='size of image height')
+parser.add_argument('--img_width', type=int, default=128, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=100, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
-parser.add_argument('--generator_type', type=str, default='resnet', help="'resnet' or 'unet'")
+parser.add_argument('--generator_type', type=str, default='unet', help="'resnet' or 'unet'")
+parser.add_argument('--n_residual_blocks', type=int, default=6, help='number of residual blocks in generator')
 opt = parser.parse_args()
 print(opt)
 
@@ -54,8 +55,8 @@ patch_h, patch_w = int(opt.img_height / 2**3), int(opt.img_width / 2**3)
 patch = (opt.batch_size, 1, patch_h, patch_w)
 
 # Initialize generator and discriminator
-G_AB = GeneratorResNet() if opt.generator_type == 'resnet' else GeneratorUNet()
-G_BA = GeneratorResNet() if opt.generator_type == 'resnet' else GeneratorUNet()
+G_AB = GeneratorResNet(res_blocks=opt.n_residual_blocks) if opt.generator_type == 'resnet' else GeneratorUNet()
+G_BA = GeneratorResNet(res_blocks=opt.n_residual_blocks) if opt.generator_type == 'resnet' else GeneratorUNet()
 D_A = Discriminator()
 D_B = Discriminator()
 
@@ -83,7 +84,7 @@ else:
 
 # Loss weights
 lambda_cyc = 10
-lambda_id = 0.0 * lambda_cyc
+lambda_id = 0.1 * lambda_cyc
 
 # Optimizers
 optimizer_G = torch.optim.Adam(itertools.chain(G_AB.parameters(), G_BA.parameters()),
@@ -212,11 +213,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         #  Log Progress
         # --------------
 
-        logger.log({'loss_G': loss_G,
-                    'loss_G_id': loss_identity,
-                    'loss_G_GAN': loss_GAN,
-                    'loss_G_cycle': loss_cycle,
-                    'loss_D': (loss_D_A + loss_D_B)},
+        logger.log({'loss_G': loss_G, 'loss_G_id': loss_identity, 'loss_G_GAN': loss_GAN,
+                    'loss_G_cycle': loss_cycle, 'loss_D': (loss_D_A + loss_D_B)},
                     images={'real_A': real_A, 'real_B': real_B, 'fake_A': fake_A,
                             'fake_B': fake_B, 'recov_A': recov_A, 'recov_B': recov_B},
                     epoch=epoch, batch=i)

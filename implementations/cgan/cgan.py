@@ -27,7 +27,7 @@ parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality 
 parser.add_argument('--n_classes', type=int, default=10, help='number of classes for dataset')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-parser.add_argument('--sample_interval', type=int, default=1000, help='interval between image sampling')
+parser.add_argument('--sample_interval', type=int, default=400, help='interval between image sampling')
 opt = parser.parse_args()
 print(opt)
 
@@ -47,63 +47,51 @@ class Generator(nn.Module):
 
         self.label_emb = nn.Embedding(opt.n_classes, opt.latent_dim)
 
-        self.init_size = opt.img_size // 4
-        self.l1 = nn.Sequential(nn.Linear(opt.latent_dim, 128*self.init_size**2))
-
         self.model = nn.Sequential(
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 128, 3, stride=1, padding=1),
-            nn.BatchNorm2d(128, 0.8),
+            nn.Linear(opt.latent_dim, 128),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(128, 64, 3, stride=1, padding=1),
-            nn.BatchNorm2d(64, 0.8),
+            nn.Linear(128, 256),
+            nn.BatchNorm1d(256),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, opt.channels, 3, stride=1, padding=1),
+            nn.Linear(256, 512),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 1024),
+            nn.BatchNorm1d(1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(1024, opt.channels*opt.img_size**2),
             nn.Tanh()
         )
 
     def forward(self, noise, labels):
         gen_input = torch.mul(self.label_emb(labels), noise)
-        out = self.l1(gen_input)
-        out = out.view(out.shape[0], 128, self.init_size, self.init_size)
-        img = self.model(out)
+        img = self.model(gen_input)
+        img = img.view(img.size(0), opt.channels, opt.img_size, opt.img_size)
         return img
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, bn=True):
-            block = [   nn.Conv2d(in_filters, out_filters, 3, 2, 1),
-                        nn.LeakyReLU(0.2, inplace=True),
-                        nn.Dropout2d(0.25)]
-            if bn:
-                block.append(nn.BatchNorm2d(out_filters, 0.8))
-            return block
+        self.label_embedding = nn.Embedding(opt.n_classes, opt.n_classes)
 
-        layers = []
-        in_filters = opt.channels + 1
-        for out_filters, bn in [(16, False), (32, True), (64, True), (128, False)]:
-            layers.extend(discriminator_block(in_filters, out_filters, bn))
-            in_filters = out_filters
-
-        self.model = nn.Sequential(*layers)
-
-        # The height and width of downsampled image
-        ds_size = opt.img_size // 2**4
-        self.adv_layer = nn.Sequential( nn.Linear(out_filters*ds_size**2, 1),
-                                        nn.Sigmoid())
+        self.model = nn.Sequential(
+            nn.Linear(opt.n_classes + opt.img_size**2, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 512),
+            nn.Dropout(0.4),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 512),
+            nn.Dropout(0.4),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 1),
+            nn.Sigmoid()
+        )
 
     def forward(self, img, labels):
-        # Extract label embedding
-        label_emb = nn.Embedding(opt.n_classes, opt.img_size**2)(labels)
-        label_emb = label_emb.view(label_emb.shape[0], 1, opt.img_size, opt.img_size)
         # Concatenate label embedding and image by channels
-        d_input = torch.cat((label_emb, img), 1)
-        feature_repr = self.model(d_input)
-        feature_repr = feature_repr.view(feature_repr.shape[0], -1)
-        validity = self.adv_layer(feature_repr)
+        d_input = torch.cat((img.view(img.size(0), -1), self.label_embedding(labels)), -1)
+        validity = self.model(d_input)
 
         return validity
 
@@ -127,7 +115,7 @@ discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs('../../data/mnist', exist_ok=True)
-mnist_loader = torch.utils.data.DataLoader(
+dataloader = torch.utils.data.DataLoader(
     datasets.MNIST('../../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
                         transforms.Resize(opt.img_size),
@@ -143,22 +131,26 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
-def sample_image(n_row, epoch):
+# In your for loop
+y_onehot.zero_()
+y_onehot.scatter_(1, y, 1)
+
+def sample_image(batches_done):
     """Saves a grid of generated digits ranging from 0 to n_classes"""
     # Sample noise
-    z = Variable(FloatTensor(np.random.normal(0, 1, (n_row**2, opt.latent_dim))))
+    z = Variable(FloatTensor(np.random.normal(0, 1, (10, opt.latent_dim))))
     # Get labels ranging from 0 to n_classes for n rows
-    labels = np.array([num for _ in range(n_row) for num in range(n_row)])
+    labels = np.arange(0, 10, 10)
     labels = Variable(LongTensor(labels))
     gen_imgs = generator(z, labels)
-    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=n_row, normalize=True)
+    save_image(gen_imgs.data, 'images/%d.png' % batches_done, nrow=5, normalize=True)
 
 # ----------
 #  Training
 # ----------
 
 for epoch in range(opt.n_epochs):
-    for i, (imgs, labels) in enumerate(mnist_loader):
+    for i, (imgs, labels) in enumerate(dataloader):
 
         batch_size = imgs.shape[0]
 
@@ -166,9 +158,8 @@ for epoch in range(opt.n_epochs):
         valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
         fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
 
-        if cuda:
-            imgs = imgs.type(torch.cuda.FloatTensor)
-            labels = labels.type(torch.cuda.LongTensor)
+        imgs = imgs.type(FloatTensor)
+        labels = labels.type(LongTensor)
 
         real_imgs = Variable(imgs)
         labels = Variable(labels)
@@ -213,8 +204,10 @@ for epoch in range(opt.n_epochs):
         d_loss.backward()
         optimizer_D.step()
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
+        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(dataloader),
                                                             d_loss.data.cpu().numpy()[0],
                                                             g_loss.data.cpu().numpy()[0]))
 
-    sample_image(n_row=10, epoch=epoch)
+        batches_done = epoch * len(dataloader) + i
+        if batches_done % opt.sample_interval == 0:
+            sample_image(batches_done=batches_done)

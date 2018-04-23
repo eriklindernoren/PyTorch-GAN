@@ -26,7 +26,7 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-parser.add_argument('--sample_interval', type=int, default=1000, help='interval between image sampling')
+parser.add_argument('--sample_interval', type=int, default=400, help='interval between image sampling')
 opt = parser.parse_args()
 print(opt)
 
@@ -117,7 +117,7 @@ discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs('../../data/mnist', exist_ok=True)
-mnist_loader = torch.utils.data.DataLoader(
+dataloader = torch.utils.data.DataLoader(
     datasets.MNIST('../../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.Resize(opt.img_size),
@@ -137,7 +137,7 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 # ----------
 
 for epoch in range(opt.n_epochs):
-    for i, (imgs, _) in enumerate(mnist_loader):
+    for i, (imgs, _) in enumerate(dataloader):
 
         # Adversarial ground truths
         valid = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
@@ -180,7 +180,9 @@ for epoch in range(opt.n_epochs):
         d_loss.backward()
         optimizer_D.step()
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(mnist_loader),
+        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(dataloader),
                                                             d_loss.data[0], g_loss.data[0]))
 
-    save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
+        batches_done = epoch * len(dataloader) + i
+        if batches_done % opt.sample_interval == 0:
+            save_image(gen_imgs.data[:25], 'images/%d.png' % batches_done, nrow=5, normalize=True)

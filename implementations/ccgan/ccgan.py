@@ -141,6 +141,7 @@ for epoch in range(opt.n_epochs):
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs, i, len(cifar_loader),
                                                             d_loss.data.cpu().numpy()[0], g_loss.data.cpu().numpy()[0]))
 
-        if i % opt.sample_interval == 0:
+        batches_done = epoch * len(dataloader) + i
+        if batches_done % opt.sample_interval == 0:
             save_image(torch.cat((masked_imgs.data[:5], gen_imgs.data[:5], real_imgs.data[:5]), -2),
-                        'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
+                        'images/%d.png' % batches_done, nrow=5, normalize=True)

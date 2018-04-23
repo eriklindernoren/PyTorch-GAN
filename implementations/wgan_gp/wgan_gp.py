@@ -30,7 +30,7 @@ parser.add_argument('--img_size', type=int, default=28, help='size of each image
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
 parser.add_argument('--n_critic', type=int, default=5, help='number of training steps for discriminator per iter')
 parser.add_argument('--clip_value', type=float, default=0.01, help='lower and upper clip value for disc. weights')
-parser.add_argument('--sample_interval', type=int, default=1, help='interval betwen image samples')
+parser.add_argument('--sample_interval', type=int, default=400, help='interval betwen image samples')
 opt = parser.parse_args()
 print(opt)
 
@@ -104,7 +104,7 @@ discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs('../../data/mnist', exist_ok=True)
-mnist_loader = torch.utils.data.DataLoader(
+dataloader = torch.utils.data.DataLoader(
     datasets.MNIST('../../data/mnist', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.ToTensor(),
@@ -144,10 +144,11 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
 #  Training
 # ----------
 
+batches_done = 0
 for epoch in range(opt.n_epochs):
 
     # Batch iterator
-    data_iter = iter(mnist_loader)
+    data_iter = iter(dataloader)
 
     for i in range(len(data_iter) // opt.n_critic):
         # Train discriminator for n_critic times
@@ -210,8 +211,9 @@ for epoch in range(opt.n_epochs):
         optimizer_G.step()
 
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs,
-                                                        i * opt.n_critic, len(mnist_loader),
+                                                        batches_done % len(dataloader), len(dataloader),
                                                         d_loss.data[0], gen_validity.data[0]))
 
-    if epoch % opt.sample_interval == 0:
-        save_image(gen_imgs.data, 'images/%d.png' % epoch, nrow=int(math.sqrt(opt.batch_size)), normalize=True)
+        if batches_done % opt.sample_interval == 0:
+            save_image(gen_imgs.data[:25], 'images/%d.png' % batches_done, nrow=5, normalize=True)
+        batches_done += 1
