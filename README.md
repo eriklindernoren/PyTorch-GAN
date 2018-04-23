@@ -22,6 +22,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     + [Generative Adversarial Network](#gan)
     + [LSGAN](#lsgan)
     + [Pix2Pix](#pix2pix)
+    + [PixelDA](#pixelda)
     + [Semi-Supervised GAN](#sgan)
     + [Super-Resolution GAN](#srgan)
     + [Wasserstein GAN](#wgan)
@@ -173,7 +174,24 @@ $ cd data/
 $ bash download_pix2pix_dataset.sh facades
 $ cd ../implementations/pix2pix/
 $ python3 pix2pix.py
+```
+
+### PixelDA
+_Unsupervised Pixel-Level Domain Adaptation with Generative Adversarial Networks_
+
+[[Paper]](https://arxiv.org/abs/1612.05424) [[Code]](implementations/pixelda/pixelda.py)
+
+#### MNIST to MNIST-M Classification
+Trains a classifier on MNIST images that are translated to resemble MNIST-M (by performing unsupervised image-to-image domain adaptation). This model is compared to the naive solution of training a classifier on MNIST and evaluating it on MNIST-M. The naive model manages a 55% classification accuracy on MNIST-M while the one trained during domain adaptation gets a 95% classification accuracy.
+
+```
+$ cd implementations/pixelda/
+$ python3 pixelda.py
 ```  
+| Method       | Accuracy  |
+| ------------ |:---------:|
+| Naive        | 55%       |
+| PixelDA      | 95%       |
 
 ### SGAN
 _Semi-Supervised Generative Adversarial Network_
