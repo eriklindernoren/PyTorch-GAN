@@ -158,12 +158,9 @@ for epoch in range(opt.n_epochs):
         fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
         fake_aux_gt = Variable(LongTensor(batch_size).fill_(opt.num_classes), requires_grad=False)
 
-        if cuda:
-            imgs = imgs.type(torch.cuda.FloatTensor)
-            labels = labels.type(torch.cuda.LongTensor)
-
-        real_imgs = Variable(imgs)
-        labels = Variable(labels)
+        # Configure input
+        real_imgs = Variable(imgs.type(FloatTensor))
+        labels = Variable(labels.type(LongTensor))
 
         # -----------------
         #  Train Generator

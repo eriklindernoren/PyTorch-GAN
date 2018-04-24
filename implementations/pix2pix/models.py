@@ -7,13 +7,13 @@ import torch
 ##############################
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, bn=True, dropout=0.0):
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
         super(UNetDown, self).__init__()
         model = [   nn.Conv2d(in_size, out_size, 3, stride=2, padding=1),
                     nn.LeakyReLU(0.2, inplace=True) ]
 
-        if bn:
-            model += [nn.InstanceNorm2d(out_size)]
+        if normalize=:
+            model += [nn.BatchNorm2d(out_size, 0.8)]
 
         if dropout:
             model += [nn.Dropout(dropout)]
@@ -29,8 +29,7 @@ class UNetUp(nn.Module):
         model = [   nn.Upsample(scale_factor=2),
                     nn.Conv2d(in_size, out_size, 3, stride=1, padding=1),
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.InstanceNorm2d(out_size) ]
-
+                    nn.BatchNorm2d(out_size, 0.8) ]
         if dropout:
             model += [nn.Dropout(dropout)]
 
@@ -46,7 +45,7 @@ class GeneratorUNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3):
         super(GeneratorUNet, self).__init__()
 
-        self.down1 = UNetDown(in_channels, 64, bn=False)
+        self.down1 = UNetDown(in_channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
@@ -96,11 +95,11 @@ class ResidualBlock(nn.Module):
 
         conv_block = [  nn.ReflectionPad2d(1),
                         nn.Conv2d(in_features, in_features, 3),
-                        nn.InstanceNorm2d(in_features),
+                        nn.BatchNorm2d(in_features),
                         nn.ReLU(inplace=True),
                         nn.ReflectionPad2d(1),
                         nn.Conv2d(in_features, in_features, 3),
-                        nn.InstanceNorm2d(in_features)  ]
+                        nn.BatchNorm2d(in_features)  ]
 
         self.conv_block = nn.Sequential(*conv_block)
 
@@ -114,7 +113,7 @@ class GeneratorResNet(nn.Module):
         # Initial convolution block
         model = [   nn.ReflectionPad2d(3),
                     nn.Conv2d(in_channels, 64, 7),
-                    nn.InstanceNorm2d(64),
+                    nn.BatchNorm2d(64),
                     nn.ReLU(inplace=True) ]
 
         # Downsampling
@@ -122,7 +121,7 @@ class GeneratorResNet(nn.Module):
         out_features = in_features*2
         for _ in range(2):
             model += [  nn.Conv2d(in_features, out_features, 3, stride=2, padding=1),
-                        nn.InstanceNorm2d(out_features),
+                        nn.BatchNorm2d(out_features),
                         nn.ReLU(inplace=True) ]
             in_features = out_features
             out_features = in_features*2
@@ -135,7 +134,7 @@ class GeneratorResNet(nn.Module):
         out_features = in_features//2
         for _ in range(2):
             model += [  nn.ConvTranspose2d(in_features, out_features, 3, stride=2, padding=1, output_padding=1),
-                        nn.InstanceNorm2d(out_features),
+                        nn.BatchNorm2d(out_features),
                         nn.ReLU(inplace=True) ]
             in_features = out_features
             out_features = in_features//2
@@ -162,7 +161,7 @@ class Discriminator(nn.Module):
             """Returns layers of each discriminator block"""
             layers = [nn.Conv2d(in_filters, out_filters, 3, stride, 1)]
             if normalize:
-                layers.append(nn.InstanceNorm2d(out_filters))
+                layers.append(nn.BatchNorm2d(out_filters))
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 

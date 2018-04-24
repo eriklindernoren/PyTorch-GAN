@@ -167,10 +167,8 @@ for epoch in range(opt.n_epochs):
         valid = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
         fake = Variable(Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
 
-        if cuda:
-            imgs = imgs.type(torch.cuda.FloatTensor)
-
-        real_imgs = Variable(imgs)
+        # Configure input
+        real_imgs = Variable(imgs.type(Tensor))
 
         # -----------------
         #  Train Generator
@@ -201,8 +199,7 @@ for epoch in range(opt.n_epochs):
         fake_loss = adversarial_loss(discriminator(gen_imgs.detach()), fake)
         d_loss = (real_loss + fake_loss) / 2
 
-        d_loss.backward()
-
+        d_
         # Calculate gradient penalty
         gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data)
         gradient_penalty.backward()

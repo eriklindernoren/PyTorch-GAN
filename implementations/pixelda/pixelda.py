@@ -217,6 +217,7 @@ for epoch in range(opt.n_epochs):
         valid = Variable(FloatTensor(batch_size, *patch).fill_(1.0), requires_grad=False)
         fake = Variable(FloatTensor(batch_size, *patch).fill_(0.0), requires_grad=False)
 
+        # Configure input
         imgs_A      = Variable(imgs_A.type(FloatTensor).expand(batch_size, 3, opt.img_size, opt.img_size))
         labels_A    = Variable(labels_A.type(LongTensor))
         imgs_B      = Variable(imgs_B.type(FloatTensor))

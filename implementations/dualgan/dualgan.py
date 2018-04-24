@@ -33,7 +33,6 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--img_size', type=int, default=128, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--n_critic', type=int, default=5, help='number of training steps for discriminator per iter')
-parser.add_argument('--clip_value', type=float, default=0.01, help='lower and upper clip value for disc. weights')
 parser.add_argument('--sample_interval', type=int, default=200, help='interval betwen image samples')
 opt = parser.parse_args()
 print(opt)
@@ -65,8 +64,8 @@ lambda_gp = 10
 # Initialize generator and discriminator
 G_AB = Generator()
 G_BA = Generator()
-D_A = Discriminator(img_shape)
-D_B = Discriminator(img_shape)
+D_A = Discriminator()
+D_B = Discriminator()
 
 if cuda:
     G_AB.cuda()
@@ -123,6 +122,9 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
 #  Training
 # ----------
 
+# Keeps the 5 latest image samples
+image_samples = []
+
 for epoch in range(opt.n_epochs):
 
     # Batch iterator
@@ -160,11 +162,13 @@ for epoch in range(opt.n_epochs):
             # Domain A
             #----------
 
+            # Discriminate between real and fake samples
             real_validity_A = D_A(imgs_A)
             real_validity_A.backward(valid)
             fake_validity_A = D_A(fake_A)
             fake_validity_A.backward(fake)
 
+            # Compute gradient penalty for improved wasserstein training
             gp_A = compute_gradient_penalty(D_A, imgs_A.data, fake_A.data)
             gp_A.backward()
 
@@ -172,15 +176,17 @@ for epoch in range(opt.n_epochs):
             # Domain B
             #----------
 
+            # Discriminate between real and fake samples
             real_validity_B = D_B(imgs_B)
             real_validity_B.backward(valid)
             fake_validity_B = D_B(fake_B)
             fake_validity_B.backward(fake)
 
+            # Compute gradient penalty for improved wasserstein training
             gp_B = compute_gradient_penalty(D_B, imgs_B.data, fake_B.data)
             gp_B.backward()
 
-            # Total loss
+            # Total adversarial loss
             D_A_loss = real_validity_A - fake_validity_A
             D_B_loss = real_validity_B - fake_validity_B
 
@@ -202,15 +208,15 @@ for epoch in range(opt.n_epochs):
         recov_B = G_AB(fake_A)
 
         # Adversarial loss
-        validity_A = lambda_adv / 2 * D_A(fake_A)
+        validity_A = (lambda_adv / 2) * D_A(fake_A)
         validity_A.backward(valid)
-        validity_B = lambda_adv / 2 * D_B(fake_B)
+        validity_B = (lambda_adv / 2) * D_B(fake_B)
         validity_B.backward(valid)
 
         # Cycle-consistency loss
-        cycle_A = lambda_cycle / 2 * cycle_loss(recov_A, imgs_A)
+        cycle_A = (lambda_cycle / 2) * cycle_loss(recov_A, imgs_A)
         cycle_A.backward()
-        cycle_B = lambda_cycle / 2 * cycle_loss(recov_B, imgs_B)
+        cycle_B = (lambda_cycle / 2) * cycle_loss(recov_B, imgs_B)
         cycle_B.backward()
 
         optimizer_G.step()
@@ -219,24 +225,26 @@ for epoch in range(opt.n_epochs):
         G_adv = validity_A + validity_B
         G_cycle = cycle_A + cycle_B
 
+        #--------------
+        # Log Progress
+        #--------------
+
         print ("[Epoch %d/%d] [Batch %d/%d] [D_A loss: %f] [D_B loss: %f] [G loss: %f, cycle: %f]" % (epoch, opt.n_epochs,
                                                         i * opt.n_critic, len(dataloader),
                                                         D_A_loss.data.cpu().numpy()[0].mean(),
                                                         D_B_loss.data.cpu().numpy()[0].mean(),
                                                         G_adv.data.cpu().numpy()[0].mean(), G_cycle.data[0]))
 
+
+        # Create image sample
+        ABA = torch.cat((imgs_A.data, fake_B.data, recov_A.data), -2)
+        BAB = torch.cat((imgs_B.data, fake_A.data, recov_B.data), -2)
+        sample = torch.cat((ABA, BAB), -2)
+        image_samples.append(sample)
+        if len(image_samples) > 5:
+            image_samples.pop(0)
+
+        # Check sample interval => save sample if there
         batches_done = len(dataloader) * epoch + i * opt.n_critic
         if batches_done % opt.sample_interval == 0:
-            n_samples = 10
-            # Concatenate samples by column
-            real_A = torch.cat(imgs_A.data[:n_samples], -1)
-            real_B = torch.cat(imgs_B.data[:n_samples], -1)
-            fake_A = torch.cat(fake_A.data[:n_samples], -1)
-            fake_B = torch.cat(fake_B.data[:n_samples], -1)
-            recov_A = torch.cat(recov_A.data[:n_samples], -1)
-            recov_B = torch.cat(recov_B.data[:n_samples], -1)
-            # Concatenate translations by row
-            ABA = torch.cat((real_A, fake_B, recov_A), -2)
-            BAB = torch.cat((real_B, fake_A, recov_B), -2)
-            # Save image
-            save_image(torch.cat((ABA, BAB), -1), 'images/%d.png' % batches_done, nrow=2, normalize=True)
+            save_image(torch.cat(image_samples, -1), 'images/%d.png' % batches_done, nrow=2, normalize=True)

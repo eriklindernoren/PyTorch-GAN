@@ -142,10 +142,8 @@ for epoch in range(opt.n_epochs):
         valid = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
         fake = Variable(Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
 
-        if cuda:
-            imgs = imgs.type(torch.cuda.FloatTensor)
-
-        real_imgs = Variable(imgs)
+        # Configure input
+        real_imgs = Variable(imgs.type(Tensor))
 
         # -----------------
         #  Train Generator

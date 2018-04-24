@@ -13,6 +13,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
   * [Implementations](#implementations)
     + [Auxiliary Classifier GAN](#auxiliary-classifier-gan)
     + [Adversarial Autoencoder](#adversarial-autoencoder)
+    + [BEGAN](#began)
     + [Boundary-Seeking GAN](#boundary-seeking-gan)
     + [Conditional GAN](#conditional-gan)
     + [Context-Conditional GAN](#context-conditional-gan)
@@ -66,12 +67,29 @@ Alireza Makhzani, Jonathon Shlens, Navdeep Jaitly, Ian Goodfellow, Brendan Frey
 #### Abstract
 n this paper, we propose the "adversarial autoencoder" (AAE), which is a probabilistic autoencoder that uses the recently proposed generative adversarial networks (GAN) to perform variational inference by matching the aggregated posterior of the hidden code vector of the autoencoder with an arbitrary prior distribution. Matching the aggregated posterior to the prior ensures that generating from any part of prior space results in meaningful samples. As a result, the decoder of the adversarial autoencoder learns a deep generative model that maps the imposed prior to the data distribution. We show how the adversarial autoencoder can be used in applications such as semi-supervised classification, disentangling style and content of images, unsupervised clustering, dimensionality reduction and data visualization. We performed experiments on MNIST, Street View House Numbers and Toronto Face datasets and show that adversarial autoencoders achieve competitive results in generative modeling and semi-supervised classification tasks.
 
-[[Paper]](https://arxiv.org/abs/1511.05644) [[Code]](implementations/aae/adversarial_autoencoder.py)
+[[Paper]](https://arxiv.org/abs/1511.05644) [[Code]](implementations/aae/aae.py)
 
 #### Run Example
 ```
 $ cd implementations/aae/
 $ python3 aae.py
+```
+
+### BEGAN
+_Adversarial Autoencoder_
+
+#### Authors
+David Berthelot, Thomas Schumm, Luke Metz
+
+#### Abstract
+We propose a new equilibrium enforcing method paired with a loss derived from the Wasserstein distance for training auto-encoder based Generative Adversarial Networks. This method balances the generator and discriminator during training. Additionally, it provides a new approximate convergence measure, fast and stable training and high visual quality. We also derive a way of controlling the trade-off between image diversity and visual quality. We focus on the image generation task, setting a new milestone in visual quality, even at higher resolutions. This is achieved while using a relatively simple model architecture and a standard training procedure.
+
+[[Paper]](https://arxiv.org/abs/1703.10717) [[Code]](implementations/began/began.py)
+
+#### Run Example
+```
+$ cd implementations/began/
+$ python3 began.py
 ```
 
 ### Boundary-Seeking GAN
@@ -156,9 +174,8 @@ $ python3 cyclegan.py --dataset_name apple2orange
     <img src="figures/cyclegan.png" width="240"\>
 </p>
 <p align="center">
-    Figure: First row displays the original images from both domains. The <br>
-    second row shows the translated versions of both images and the third row <br>
-    displays the reconstructed images.
+    Rows from top to bottom: (1) Original images from both domains (2) Translated images <br>
+    produced by generators (3) Reconstructed images
 </p>
 
 ### Deep Convolutional GAN
@@ -226,9 +243,9 @@ $ python3 dragan.py
     <img src="figures/discogan.png" width="480"\>
 </p>
 <p align="center">
-    Figure: Rows top to bottom: Real image from domain A - Translated image from <br>
-    domain A - Reconstructed image from domain A - Real image from domain B - <br>
-    Translated image from domain B - Reconstructed image from domain B.
+    Rows from top to bottom: (1) Real image from domain A (2) Translated image from <br>
+    domain A (3) Reconstructed image from domain A (4) Real image from domain B (5) <br>
+    Translated image from domain B (6) Reconstructed image from domain B
 </p>
 
 ### DualGAN
@@ -316,9 +333,8 @@ $ python3 pix2pix.py --dataset_name facades
     <img src="figures/pix2pix.png" width="480"\>
 </p>
 <p align="center">
-    Figure: Top row shows the condition for the generator and the second row <br>
-    shows its output. The third row display the true corresponding image to the <br>
-    condition.
+    Rows from top to bottom: (1) The condition for the generator (2) Generated image <br>
+    based of condition (3) The true corresponding image to the condition
 </p>
 
 ### PixelDA
@@ -348,9 +364,8 @@ $ python3 pixelda.py
     <img src="figures/pixelda.png" width="480"\>
 </p>
 <p align="center">
-    Figure: Top row shows the original images from the MNIST domain. The middle row <br>
-    displays the translated versions of the images in the top row. The bottom <br>
-    row shows examples of images from the MNIST-M domain.
+    Rows from top to bottom: (1) Real images from MNIST (2) Translated images from <br>
+    MNIST to MNIST-M (3) Examples of images from MNIST-M
 </p>
 
 ### Semi-Supervised GAN
@@ -396,8 +411,8 @@ $ python3 srgan.py
     <img src="figures/srgan.png" width="240"\>
 </p>
 <p align="center">
-    Figure: First row is produced by Super-resolution GAN. The second row <br>
-    shows the full resolution image.
+    Rows from top to bottom: (1) Generated sample by Super-resolution GAN (2) The full <br>
+    resolution image
 </p>
 
 ### Wasserstein GAN

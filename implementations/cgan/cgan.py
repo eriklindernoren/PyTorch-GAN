@@ -156,11 +156,9 @@ for epoch in range(opt.n_epochs):
         valid = Variable(FloatTensor(batch_size, 1).fill_(1.0), requires_grad=False)
         fake = Variable(FloatTensor(batch_size, 1).fill_(0.0), requires_grad=False)
 
-        imgs = imgs.type(FloatTensor)
-        labels = labels.type(LongTensor)
-
-        real_imgs = Variable(imgs)
-        labels = Variable(labels)
+        # Configure input
+        real_imgs = Variable(imgs.type(FloatTensor))
+        labels = Variable(labels.type(LongTensor))
 
         # -----------------
         #  Train Generator
