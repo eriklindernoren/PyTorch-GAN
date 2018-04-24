@@ -35,8 +35,8 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--img_height', type=int, default=128, help='size of image height')
 parser.add_argument('--img_width', type=int, default=128, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
-parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of latent representation')
-parser.add_argument('--sample_interval', type=int, default=500, help='interval between sampling of images from generators')
+parser.add_argument('--latent_dim', type=int, default=512, help='dimensionality of latent representation')
+parser.add_argument('--sample_interval', type=int, default=200, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
 opt = parser.parse_args()
 print(opt)
@@ -65,7 +65,9 @@ if cuda:
     encoder.cuda()
     discriminator = discriminator.cuda()
     adversarial_loss.cuda()
-    criterion_translation.cuda()
+    pixelwise_loss.cuda()
+    latent_loss.cuda()
+    kl_loss.cuda()
 
 if opt.epoch != 0:
     # Load pretrained models
@@ -131,7 +133,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         fake_A = generator(real_B, enc_A)
         enc_fake_A = encoder(fake_A)
         # Use randomly sampled latent
-        z = Variable(Tensor(np.random.normal(real_A.size(0), opt.latent_dim)))
+        z = Variable(Tensor(np.random.normal(0, 1, enc_A.shape)))
         _fake_A = generator(real_A, z)
 
         # Adversarial
@@ -141,7 +143,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Pixel
         loss_pixel = pixelwise_loss(fake_A, real_A)
         # Latent
-        loss_latent = latent_loss(enc_fake_A, enc_A)
+        loss_latent = latent_loss(enc_fake_A, Variable(enc_A.data, requires_grad=False))
         # KL
         loss_kl = kl_loss(enc_A, z)
 
@@ -180,7 +182,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         #  Log Progress
         # --------------
 
-        logger.log({'loss_G': loss_G, 'loss_G_trans': loss_trans, 'loss_D': loss_D},
+        logger.log({'loss_D': loss_D, 'loss_G': loss_G, 'loss_pixel': loss_pixel,
+                    'loss_latent': loss_latent},
                     images={'real_B': real_B, 'fake_A': fake_A, 'real_A': real_A},
                     epoch=epoch, batch=i)
 
