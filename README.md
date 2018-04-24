@@ -226,9 +226,9 @@ $ python3 discogan.py --dataset_name edges2shoes
     <img src="figures/discogan.png" width="480"\>
 </p>
 <p align="center">
-    Figure: Rows top to bottom: Real image from domain A - Translated image from <br>
-    domain A - Reconstructed image from domain A - Real image from domain B - <br>
-    Translated image from domain B - Reconstructed image from domain B.
+    Rows from top to bottom: (1) Real image from domain A (2) Translated image from <br>
+    domain A (3) Reconstructed image from domain A (4) Real image from domain B (5) <br>
+    Translated image from domain B (6) Reconstructed image from domain B
 </p>
 
 ### DRAGAN
@@ -247,15 +247,6 @@ We propose studying GAN training dynamics as regret minimization, which is in co
 $ cd implementations/dragan/
 $ python3 dragan.py
 ```
-
-<p align="center">
-    <img src="figures/discogan.png" width="480"\>
-</p>
-<p align="center">
-    Rows from top to bottom: (1) Real image from domain A (2) Translated image from <br>
-    domain A (3) Reconstructed image from domain A (4) Real image from domain B (5) <br>
-    Translated image from domain B (6) Reconstructed image from domain B
-</p>
 
 ### DualGAN
 _DualGAN: Unsupervised Dual Learning for Image-to-Image Translation_
