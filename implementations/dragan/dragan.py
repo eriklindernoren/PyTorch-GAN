@@ -198,7 +198,6 @@ for epoch in range(opt.n_epochs):
         fake_loss = adversarial_loss(discriminator(gen_imgs.detach()), fake)
         d_loss = (real_loss + fake_loss) / 2
 
-        d_
         # Calculate gradient penalty
         gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data)
         gradient_penalty.backward()
