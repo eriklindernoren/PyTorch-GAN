@@ -97,9 +97,9 @@ class Encoder(nn.Module):
         resnet18_model = resnet18(pretrained=True)
 
         # Extracts features at the last fully-connected
-        self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-2])
+        self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-1])
         # Final fully-connected layer
-        self.fc = nn.Linear(512*4*4, latent_dim)
+        self.fc = nn.Linear(512*2*2, latent_dim)
 
     def forward(self, img):
         out = self.feature_extractor(img)
