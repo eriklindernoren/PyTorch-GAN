@@ -11,23 +11,24 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
   * [Table of Contents](#table-of-contents)
   * [Installation](#installation)
   * [Implementations](#implementations)
-    + [Auxiliary Classifier GAN](#ac-gan)
+    + [Auxiliary Classifier GAN](#auxiliary-classifier-gan)
     + [Adversarial Autoencoder](#adversarial-autoencoder)
-    + [Boundary-Seeking GAN](#bgan)
-    + [Conditional GAN](#cgan)
-    + [Context-Conditional GAN](#cc-gan)
+    + [Boundary-Seeking GAN](#boundary-seeking-gan)
+    + [Conditional GAN](#conditional-gan)
+    + [Context-Conditional GAN](#context-conditional-gan)
     + [CycleGAN](#cyclegan)
-    + [Deep Convolutional GAN](#dcgan)
+    + [Deep Convolutional GAN](#deep-convolutional-gan)
     + [DiscoGAN](#discogan)
+    + [DRAGAN](#dragan)
     + [DualGAN](#dualgan)
-    + [Generative Adversarial Network](#gan)
-    + [LSGAN](#lsgan)
+    + [GAN](#gan)
+    + [LSGAN](#least-squares-gan)
     + [Pix2Pix](#pix2pix)
     + [PixelDA](#pixelda)
-    + [Semi-Supervised GAN](#sgan)
-    + [Super-Resolution GAN](#srgan)
-    + [Wasserstein GAN](#wgan)
-    + [Wasserstein GAN GP](#wgan-gp)
+    + [Semi-Supervised GAN](#semi-supervised-gan)
+    + [Super-Resolution GAN](#super-resolution-gan)
+    + [Wasserstein GAN](#wasserstein-gan)
+    + [Wasserstein GAN GP](#wasserstein-gan-gp)
 
 ## Installation
     $ git clone https://github.com/eriklindernoren/PyTorch-GAN
@@ -35,7 +36,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     $ sudo pip3 install -r requirements.txt
 
 ## Implementations   
-### AC-GAN
+### Auxiliary Classifier GAN
 _Auxiliary Classifier Generative Adversarial Network_
 
 #### Authors
@@ -73,7 +74,7 @@ $ cd implementations/aae/
 $ python3 aae.py
 ```
 
-### BGAN
+### Boundary-Seeking GAN
 _Boundary-Seeking Generative Adversarial Networks_
 
 #### Authors
@@ -90,7 +91,7 @@ $ cd implementations/bgan/
 $ python3 bgan.py
 ```
 
-### CC-GAN
+### Context-Conditional GAN
 _Semi-Supervised Learning with Context-Conditional Generative Adversarial Networks_
 
 #### Authors
@@ -107,7 +108,7 @@ $ cd implementations/ccgan/
 $ python3 ccgan.py
 ```
 
-### CGAN
+### Conditional GAN
 _Conditional Generative Adversarial Nets_
 
 #### Authors
@@ -148,7 +149,7 @@ Image-to-image translation is a class of vision and graphics problems where the 
 $ cd data/
 $ bash download_cyclegan_dataset.sh apple2orange
 $ cd ../implementations/cyclegan/
-$ python3 cyclegan.py
+$ python3 cyclegan.py --dataset_name apple2orange
 ```
 
 <p align="center">
@@ -160,7 +161,7 @@ $ python3 cyclegan.py
     displays the reconstructed images.
 </p>
 
-### DCGAN
+### Deep Convolutional GAN
 _Deep Convolutional Generative Adversarial Network_
 
 #### Authors
@@ -201,7 +202,24 @@ While humans easily recognize relations between data from different domains with
 $ cd data/
 $ bash download_pix2pix_dataset.sh edges2shoes
 $ cd ../implementations/discogan/
-$ python3 discogan.py
+$ python3 discogan.py --dataset_name edges2shoes
+```
+
+### DRAGAN
+_On Convergence and Stability of GANs_
+
+#### Authors
+Naveen Kodali, Jacob Abernethy, James Hays, Zsolt Kira
+
+#### Abstract
+We propose studying GAN training dynamics as regret minimization, which is in contrast to the popular view that there is consistent minimization of a divergence between real and generated distributions. We analyze the convergence of GAN training from this new point of view to understand why mode collapse happens. We hypothesize the existence of undesirable local equilibria in this non-convex game to be responsible for mode collapse. We observe that these local equilibria often exhibit sharp gradients of the discriminator function around some real data points. We demonstrate that these degenerate local equilibria can be avoided with a gradient penalty scheme called DRAGAN. We show that DRAGAN enables faster training, achieves improved stability with fewer mode collapses, and leads to generator networks with better modeling performance across a variety of architectures and objective functions.
+
+[[Paper]](https://arxiv.org/abs/1705.07215) [[Code]](implementations/dragan/dragan.py)
+
+#### Run Example
+```
+$ cd implementations/dragan/
+$ python3 dragan.py
 ```
 
 <p align="center">
@@ -227,8 +245,10 @@ Conditional Generative Adversarial Networks (GANs) for cross-domain image-to-ima
 
 #### Run Example
 ```
+$ cd data/
+$ bash download_pix2pix_dataset.sh facades
 $ cd ../implementations/dualgan/
-$ python3 dualgan.py
+$ python3 dualgan.py --dataset_name facades
 ```
 
 ### GAN
@@ -252,7 +272,7 @@ $ python3 gan.py
     <img src="figures/gan.gif" width="240"\>
 </p>
 
-### LSGAN
+### Least Squares GAN
 _Least Squares Generative Adversarial Networks_
 
 #### Authors
@@ -289,7 +309,7 @@ We investigate conditional adversarial networks as a general-purpose solution to
 $ cd data/
 $ bash download_pix2pix_dataset.sh facades
 $ cd ../implementations/pix2pix/
-$ python3 pix2pix.py
+$ python3 pix2pix.py --dataset_name facades
 ```
 
 <p align="center">
@@ -333,7 +353,7 @@ $ python3 pixelda.py
     row shows examples of images from the MNIST-M domain.
 </p>
 
-### SGAN
+### Semi-Supervised GAN
 _Semi-Supervised Generative Adversarial Network_
 
 #### Authors
@@ -350,7 +370,7 @@ $ cd implementations/sgan/
 $ python3 sgan.py
 ```
 
-### SRGAN
+### Super-Resolution GAN
 _Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network_
 
 #### Authors
@@ -380,7 +400,7 @@ $ python3 srgan.py
     shows the full resolution image.
 </p>
 
-### WGAN
+### Wasserstein GAN
 _Wasserstein GAN_
 
 #### Authors
@@ -397,7 +417,7 @@ $ cd implementations/wgan/
 $ python3 wgan.py
 ```
 
-### WGAN-GP
+### Wasserstein GAN GP
 _Improved Training of Wasserstein GANs_
 
 #### Authors
