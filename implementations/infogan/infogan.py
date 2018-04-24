@@ -15,7 +15,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-os.makedirs('images', exist_ok=True)
+os.makedirs('images/static/', exist_ok=True)
+os.makedirs('images/varying_c1/', exist_ok=True)
+os.makedirs('images/varying_c2/', exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
@@ -43,12 +45,17 @@ def weights_init_normal(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
+def to_categorical(y, num_columns):
+    """Returns one-hot encoded Variable"""
+    y_cat = np.zeros((y.shape[0], num_columns))
+    y_cat[range(y.shape[0]), y] = 1.
+
+    return Variable(FloatTensor(y_cat))
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
         input_dim = opt.latent_dim + opt.n_classes + opt.code_dim
-
-        self.label_emb = nn.Embedding(opt.n_classes, opt.n_classes)
 
         self.init_size = opt.img_size // 4 # Initial size before upsampling
         self.l1 = nn.Sequential(nn.Linear(input_dim, 128*self.init_size**2))
@@ -68,7 +75,7 @@ class Generator(nn.Module):
         )
 
     def forward(self, noise, labels, code):
-        gen_input = torch.cat((noise, self.label_emb(labels), code), -1)
+        gen_input = torch.cat((noise, labels, code), -1)
         out = self.l1(gen_input)
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
         img = self.conv_blocks(out)
@@ -116,8 +123,12 @@ class Discriminator(nn.Module):
 
 # Loss functions
 adversarial_loss = torch.nn.MSELoss()
-auxiliary_loss = torch.nn.CrossEntropyLoss()
-code_loss = torch.nn.MSELoss()
+categorical_loss = torch.nn.CrossEntropyLoss()
+continuous_loss = torch.nn.MSELoss()
+
+# Loss weights
+lambda_cat = 1
+lambda_con = 0.1
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -127,8 +138,8 @@ if cuda:
     generator.cuda()
     discriminator.cuda()
     adversarial_loss.cuda()
-    auxiliary_loss.cuda()
-    code_loss.cuda()
+    categorical_loss.cuda()
+    continuous_loss.cuda()
 
 # Initialize weights
 generator.apply(weights_init_normal)
@@ -154,16 +165,28 @@ optimizer_info = torch.optim.Adam(itertools.chain(generator.parameters(), discri
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
+# Static generator inputs for sampling
+static_z = Variable(FloatTensor(np.zeros((opt.n_classes**2, opt.latent_dim))))
+static_label = to_categorical(np.array([num for _ in range(opt.n_classes) for num in range(opt.n_classes)]),
+                                num_columns=opt.n_classes)
+static_code = Variable(FloatTensor(np.zeros((opt.n_classes**2, opt.code_dim))))
+
 def sample_image(n_row, batches_done):
     """Saves a grid of generated digits ranging from 0 to n_classes"""
-    # Sample noise
+    # Static sample
     z = Variable(FloatTensor(np.random.normal(0, 1, (n_row**2, opt.latent_dim))))
-    # Get labels ranging from 0 to n_classes for n rows
-    labels = np.array([num for _ in range(n_row) for num in range(n_row)])
-    labels = Variable(LongTensor(labels))
-    code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (n_row**2, opt.code_dim))))
-    gen_imgs = generator(z, labels, code_input)
-    save_image(gen_imgs.data, 'images/%d.png' % batches_done, nrow=n_row, normalize=True)
+    static_sample = generator(z, static_label, static_code)
+    save_image(static_sample.data, 'images/static/%d.png' % batches_done, nrow=n_row, normalize=True)
+
+    # Get varied c1 and c2
+    zeros = np.zeros((n_row**2, 1))
+    c_varied = np.repeat(np.linspace(-1, 1, n_row)[:, np.newaxis], n_row, 0)
+    c1 = Variable(FloatTensor(np.concatenate((c_varied, zeros), -1)))
+    c2 = Variable(FloatTensor(np.concatenate((zeros, c_varied), -1)))
+    sample1 = generator(static_z, static_label, c1)
+    sample2 = generator(static_z, static_label, c2)
+    save_image(sample1.data, 'images/varying_c1/%d.png' % batches_done, nrow=n_row, normalize=True)
+    save_image(sample2.data, 'images/varying_c2/%d.png' % batches_done, nrow=n_row, normalize=True)
 
 # ----------
 #  Training
@@ -180,7 +203,7 @@ for epoch in range(opt.n_epochs):
 
         # Configure input
         real_imgs = Variable(imgs.type(FloatTensor))
-        labels = Variable(labels.type(LongTensor))
+        labels = to_categorical(labels.numpy(), num_columns=opt.n_classes)
 
         # -----------------
         #  Train Generator
@@ -190,7 +213,7 @@ for epoch in range(opt.n_epochs):
 
         # Sample noise and labels as generator input
         z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-        label_input = Variable(LongTensor(np.random.randint(0, opt.n_classes, batch_size)))
+        label_input = to_categorical(np.random.randint(0, opt.n_classes, batch_size), num_columns=opt.n_classes)
         code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
 
         # Generate a batch of images
@@ -229,16 +252,23 @@ for epoch in range(opt.n_epochs):
 
         optimizer_info.zero_grad()
 
+        # Sample labels
+        sampled_labels = np.random.randint(0, opt.n_classes, batch_size)
+
+        # Ground truth labels
+        gt_labels = Variable(LongTensor(sampled_labels), requires_grad=False)
+
+
         # Sample noise, labels and code as generator input
         z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
-        label_input = Variable(LongTensor(np.random.randint(0, opt.n_classes, batch_size)))
-        code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
+        label_input = to_categorical(sampled_labels, num_columns=opt.n_classes)
+        code_input = Variable(FloatTensor(np.random.normal(-1, 1, (batch_size, opt.code_dim))))
 
         gen_imgs = generator(z, label_input, code_input)
         _, pred_label, pred_code = discriminator(gen_imgs)
 
-        info_loss = auxiliary_loss(pred_label, label_input) + \
-                    code_loss(pred_code, code_input)
+        info_loss = lambda_cat * categorical_loss(pred_label, gt_labels) + \
+                    lambda_con * continuous_loss(pred_code, code_input)
 
         info_loss.backward()
         optimizer_info.step()

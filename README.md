@@ -307,6 +307,20 @@ $ cd implementations/infogan/
 $ python3 infogan.py
 ```
 
+<p align="center">
+    <img src="figures/infogan.gif" width="360"\>
+</p>
+<p align="center">
+    Result of varying categorical latent variable by column.
+</p>
+
+<p align="center">
+    <img src="figures/infogan.png" width="360"\>
+</p>
+<p align="center">
+    Result of varying continuous latent variable by row.
+</p>
+
 ### Least Squares GAN
 _Least Squares Generative Adversarial Networks_
 
