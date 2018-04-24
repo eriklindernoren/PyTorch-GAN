@@ -76,7 +76,7 @@ $ python3 aae.py
 ```
 
 ### BEGAN
-_Adversarial Autoencoder_
+_BEGAN: Boundary Equilibrium Generative Adversarial Networks_
 
 #### Authors
 David Berthelot, Thomas Schumm, Luke Metz
