@@ -80,7 +80,7 @@ class Discriminator(nn.Module):
             return block
 
         self.model = nn.Sequential(
-            *discrimintor_block(opt.channels, 16, bn=False),
+            *discriminator_block(opt.channels, 16, bn=False),
             *discriminator_block(16, 32),
             *discriminator_block(32, 64),
             *discriminator_block(64, 128),
@@ -88,7 +88,7 @@ class Discriminator(nn.Module):
 
         # The height and width of downsampled image
         ds_size = opt.img_size // 2**4
-        self.adv_layer = nn.Sequential( nn.Linear(out_filters*ds_size**2, 1),
+        self.adv_layer = nn.Sequential( nn.Linear(128*ds_size**2, 1),
                                         nn.Sigmoid())
 
     def forward(self, img):

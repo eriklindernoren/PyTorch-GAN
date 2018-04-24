@@ -88,7 +88,7 @@ class Discriminator(nn.Module):
             return block
 
         self.conv_blocks = nn.Sequential(
-            *discrimintor_block(opt.channels, 16, bn=False),
+            *discriminator_block(opt.channels, 16, bn=False),
             *discriminator_block(16, 32),
             *discriminator_block(32, 64),
             *discriminator_block(64, 128),
@@ -98,12 +98,12 @@ class Discriminator(nn.Module):
         ds_size = opt.img_size // 2**4
 
         # Output layers
-        self.adv_layer = nn.Sequential(nn.Linear(out_filters*ds_size**2, 1))
+        self.adv_layer = nn.Sequential(nn.Linear(128*ds_size**2, 1))
         self.aux_layer = nn.Sequential(
-            nn.Linear(out_filters*ds_size**2, opt.n_classes),
+            nn.Linear(128*ds_size**2, opt.n_classes),
             nn.Softmax()
         )
-        self.latent_layer = nn.Sequential(nn.Linear(out_filters*ds_size**2, opt.code_dim))
+        self.latent_layer = nn.Sequential(nn.Linear(128*ds_size**2, opt.code_dim))
 
     def forward(self, img):
         out = self.conv_blocks(img)
