@@ -54,12 +54,14 @@ class Generator(nn.Module):
         self.down4 = UNetDown(256, 512, dropout=0.5)
         self.down5 = UNetDown(512, 512, dropout=0.5)
         self.down6 = UNetDown(512, 512, dropout=0.5)
+        self.down7 = UNetDown(512, 512, dropout=0.5)
 
-        self.up1 = UNetUp(512, 512, dropout=0.5)
+        self.up1 = UNetUp(512, 512, dropout=0.8)
         self.up2 = UNetUp(1024, 512, dropout=0.5)
-        self.up3 = UNetUp(1024, 256, dropout=0.5)
-        self.up4 = UNetUp(512, 128)
-        self.up5 = UNetUp(256, 64)
+        self.up3 = UNetUp(1024, 512, dropout=0.5)
+        self.up4 = UNetUp(1024, 256, dropout=0.5)
+        self.up5 = UNetUp(512, 128)
+        self.up6 = UNetUp(256, 64)
 
 
         final = [   nn.Upsample(scale_factor=2),
@@ -75,14 +77,19 @@ class Generator(nn.Module):
         d4 = self.down4(d3)
         d5 = self.down5(d4)
         d6 = self.down6(d5)
-        u1 = self.up1(d6, d5)
-        u2 = self.up2(u1, d4)
-        u3 = self.up3(u2, d3)
-        u4 = self.up4(u3, d2)
-        u5 = self.up5(u4, d1)
+        d7 = self.down7(d6)
+        u1 = self.up1(d7, d6)
+        u2 = self.up2(u1, d5)
+        u3 = self.up3(u2, d4)
+        u4 = self.up4(u3, d3)
+        u5 = self.up5(u4, d2)
+        u6 = self.up6(u5, d1)
 
-        return self.final(u5)
+        return self.final(u6)
 
+##############################
+#        Discriminator
+##############################
 
 class Discriminator(nn.Module):
     def __init__(self, img_shape):
@@ -104,12 +111,5 @@ class Discriminator(nn.Module):
             nn.Conv2d(512, 1, 3, 1, 1)
         )
 
-        #in_size = img_shape[1] // 2**4
-        #self.output_layer = nn.Sequential(nn.Linear(512*in_size**2, 1))
-
     def forward(self, img):
-        # feature_repr = self.model(img)
-        # feature_repr = feature_repr.view(feature_repr.size(0), -1)
-        # validity = self.output_layer(feature_repr)
-
         return self.model(img)

@@ -98,7 +98,7 @@ class Discriminator(nn.Module):
 
         return validity
 
-# Use binary cross-entropy loss
+# !!! Minimizes MSE instead of BCE
 adversarial_loss = torch.nn.MSELoss()
 
 # Initialize generator and discriminator

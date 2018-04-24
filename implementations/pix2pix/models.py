@@ -150,6 +150,10 @@ class GeneratorResNet(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+##############################
+#        Discriminator
+##############################
+
 class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
@@ -162,19 +166,13 @@ class Discriminator(nn.Module):
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
-        layers = []
-        in_filters = in_channels*2
-        for out_filters, stride, normalize in [ (64, 2, False),
-                                                (128, 2, True),
-                                                (256, 2, True),
-                                                (512, 2, True)]:
-            layers.extend(discriminator_block(in_filters, out_filters, stride, normalize))
-            in_filters = out_filters
-
-        # Output layer
-        layers.append(nn.Conv2d(out_filters, 1, 3, 1, 1))
-
-        self.model = nn.Sequential(*layers)
+        self.model = nn.Sequential(
+            *discriminator_block(in_channels, 64, 2, False),
+            *discriminator_block(64, 128, 2, True),
+            *discriminator_block(128, 256, 2, True),
+            *discriminator_block(256, 512, 2, True),
+            nn.Conv2d(512, 1, 3, 1, 1)
+        )
 
     def forward(self, img_A, img_B):
         # Concatenate image and condition image by channels to produce input
