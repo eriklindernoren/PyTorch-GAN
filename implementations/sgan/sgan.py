@@ -74,7 +74,7 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, bn):
+        def discriminator_block(in_filters, out_filters, bn=True):
             """Returns layers of each discriminator block"""
             block = [   nn.Conv2d(in_filters, out_filters, 3, 2, 1),
                         nn.LeakyReLU(0.2, inplace=True),
@@ -83,13 +83,12 @@ class Discriminator(nn.Module):
                 block.append(nn.BatchNorm2d(out_filters, 0.8))
             return block
 
-        layers = []
-        in_filters = opt.channels
-        for out_filters, bn in [(16, False), (32, True), (64, True), (128, False)]:
-            layers.extend(discriminator_block(in_filters, out_filters, bn))
-            in_filters = out_filters
-
-        self.conv_blocks = nn.Sequential(*layers)
+        self.conv_blocks = nn.Sequential(
+            *discrimintor_block(opt.channels, 16, bn=False),
+            *discriminator_block(16, 32),
+            *discriminator_block(32, 64),
+            *discriminator_block(64, 128),
+        )
 
         # The height and width of downsampled image
         ds_size = opt.img_size // 2**4
