@@ -23,6 +23,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     + [DRAGAN](#dragan)
     + [DualGAN](#dualgan)
     + [GAN](#gan)
+    + [InfoGAN](#infogan)
     + [LSGAN](#least-squares-gan)
     + [Pix2Pix](#pix2pix)
     + [PixelDA](#pixelda)
@@ -288,6 +289,23 @@ $ python3 gan.py
 <p align="center">
     <img src="figures/gan.gif" width="240"\>
 </p>
+
+### InfoGAN
+_InfoGAN: Interpretable Representation Learning by Information Maximizing Generative Adversarial Nets_
+
+#### Authors
+Xi Chen, Yan Duan, Rein Houthooft, John Schulman, Ilya Sutskever, Pieter Abbeel
+
+#### Abstract
+This paper describes InfoGAN, an information-theoretic extension to the Generative Adversarial Network that is able to learn disentangled representations in a completely unsupervised manner. InfoGAN is a generative adversarial network that also maximizes the mutual information between a small subset of the latent variables and the observation. We derive a lower bound to the mutual information objective that can be optimized efficiently, and show that our training procedure can be interpreted as a variation of the Wake-Sleep algorithm. Specifically, InfoGAN successfully disentangles writing styles from digit shapes on the MNIST dataset, pose from lighting of 3D rendered images, and background digits from the central digit on the SVHN dataset. It also discovers visual concepts that include hair styles, presence/absence of eyeglasses, and emotions on the CelebA face dataset. Experiments show that InfoGAN learns interpretable representations that are competitive with representations learned by existing fully supervised methods.
+
+[[Paper]](https://arxiv.org/abs/1406.2661) [[Code]](implementations/infogan/infogan.py)
+
+#### Run Example
+```
+$ cd implementations/infogan/
+$ python3 infogan.py
+```
 
 ### Least Squares GAN
 _Least Squares Generative Adversarial Networks_
