@@ -12,14 +12,15 @@ from torchvision.models import resnet18
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
         super(UNetDown, self).__init__()
-        model = [   nn.Conv2d(in_size, out_size, 3, stride=2, padding=1),
-                    nn.LeakyReLU(0.2, inplace=True) ]
+        model = [nn.Conv2d(in_size, out_size, 3, stride=2, padding=1)]
 
         if normalize:
-            model += [nn.BatchNorm2d(out_size, 0.8)]
+            model.append(nn.BatchNorm2d(out_size, 0.8))
+
+        model.append(nn.LeakyReLU(0.2, inplace=True))
 
         if dropout:
-            model += [nn.Dropout(dropout)]
+            model.append(nn.Dropout(dropout))
 
         self.model = nn.Sequential(*model)
 
@@ -34,7 +35,7 @@ class UNetUp(nn.Module):
                     nn.BatchNorm2d(out_size, 0.8),
                     nn.LeakyReLU(0.2, inplace=True) ]
         if dropout:
-            model += [nn.Dropout(dropout)]
+            model.append(nn.Dropout(dropout))
 
         self.model = nn.Sequential(*model)
 
@@ -56,14 +57,12 @@ class Generator(nn.Module):
         self.down4 = UNetDown(256, 512)
         self.down5 = UNetDown(512, 512)
         self.down6 = UNetDown(512, 512)
-        self.down7 = UNetDown(512, 512)
 
         self.up1 = UNetUp(512, 512)
         self.up2 = UNetUp(1024, 512)
-        self.up3 = UNetUp(1024, 512)
-        self.up4 = UNetUp(1024, 256)
-        self.up5 = UNetUp(512, 128)
-        self.up6 = UNetUp(256, 64)
+        self.up3 = UNetUp(1024, 256)
+        self.up4 = UNetUp(512, 128)
+        self.up5 = UNetUp(256, 64)
 
 
         final = [   nn.Upsample(scale_factor=2),
@@ -80,15 +79,13 @@ class Generator(nn.Module):
         d4 = self.down4(d3)
         d5 = self.down5(d4)
         d6 = self.down6(d5)
-        d7 = self.down7(d6)
-        u1 = self.up1(d7, d6)
-        u2 = self.up2(u1, d5)
-        u3 = self.up3(u2, d4)
-        u4 = self.up4(u3, d3)
-        u5 = self.up5(u4, d2)
-        u6 = self.up6(u5, d1)
+        u1 = self.up1(d6, d5)
+        u2 = self.up2(u1, d4)
+        u3 = self.up3(u2, d3)
+        u4 = self.up4(u3, d2)
+        u5 = self.up5(u4, d1)
 
-        return self.final(u6)
+        return self.final(u5)
 
 ##############################
 #        Encoder
@@ -101,12 +98,12 @@ class Encoder(nn.Module):
         resnet18_model = resnet18(pretrained=True)
 
         # Extracts features at the last fully-connected
-        self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-2])
+        self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-3])
         self.avgpool = nn.AvgPool2d(kernel_size=8, stride=8)
 
         # Output is mu and log(var) for reparameterization trick used in VAEs
-        self.fc_mu = nn.Linear(512, latent_dim)
-        self.fc_logvar = nn.Linear(512, latent_dim)
+        self.fc_mu = nn.Linear(256, latent_dim)
+        self.fc_logvar = nn.Linear(256, latent_dim)
 
     def forward(self, img):
         out = self.feature_extractor(img)
@@ -133,14 +130,20 @@ class Discriminator(nn.Module):
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
-        self.model = nn.Sequential(
+        # Down sampling
+        self.conv = nn.Sequential(
             *discriminator_block(in_channels, 64, 2, False),
             *discriminator_block(64, 128, 2, True),
             *discriminator_block(128, 256, 2, True),
+        )
+
+        # Two output patches
+        self.out1 = nn.Conv2d(256, 1, 3, 1, 1)
+        self.out2 = nn.Sequential(
             *discriminator_block(256, 512, 2, True),
             nn.Conv2d(512, 1, 3, 1, 1)
         )
 
     def forward(self, img):
-        # Concatenate image and condition image by channels to produce input
-        return self.model(img)
+        x = self.conv(img)
+        return self.out1(x), self.out2(x)

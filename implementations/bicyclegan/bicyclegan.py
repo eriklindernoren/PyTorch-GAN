@@ -32,11 +32,11 @@ parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first 
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--img_height', type=int, default=256, help='size of image height')
-parser.add_argument('--img_width', type=int, default=256, help='size of image width')
+parser.add_argument('--img_height', type=int, default=128, help='size of image height')
+parser.add_argument('--img_width', type=int, default=128, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--latent_dim', type=int, default=8, help='dimensionality of latent representation')
-parser.add_argument('--sample_interval', type=int, default=500, help='interval between sampling of images from generators')
+parser.add_argument('--sample_interval', type=int, default=1000, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
 opt = parser.parse_args()
 print(opt)
@@ -51,19 +51,23 @@ kl_loss = torch.nn.KLDivLoss()
 
 cuda = True if torch.cuda.is_available() else False
 
-# Calculate output of image discriminator (PatchGAN)
-patch_h, patch_w = int(opt.img_height / 2**4), int(opt.img_width / 2**4)
-patch = (opt.batch_size, 1, patch_h, patch_w)
+# Calculate output of image D_VAE (PatchGAN)
+patch_h, patch_w = int(opt.img_height / 2**3), int(opt.img_width / 2**3)
+# Discriminators output two patch shapes
+patch1 = (opt.batch_size, 1, patch_h, patch_w)
+patch2 = (opt.batch_size, 1, patch_h // 2, patch_w // 2)
 
-# Initialize generator and discriminator
+# Initialize generator, encoder and discriminators
 generator = Generator(opt.latent_dim, img_shape)
 encoder = Encoder(opt.latent_dim)
-discriminator = Discriminator()
+D_VAE = Discriminator()
+D_LR = Discriminator()
 
 if cuda:
     generator = generator.cuda()
     encoder.cuda()
-    discriminator = discriminator.cuda()
+    D_VAE = D_VAE.cuda()
+    D_LR = D_LR.cuda()
     adversarial_loss.cuda()
     pixelwise_loss.cuda()
     latent_loss.cuda()
@@ -72,11 +76,14 @@ if cuda:
 if opt.epoch != 0:
     # Load pretrained models
     generator.load_state_dict(torch.load('saved_models/generator_%d.pth'))
-    discriminator.load_state_dict(torch.load('saved_models/discriminator_%d.pth'))
+    encoder.load_state_dict(torch.load('saved_models/encoder_%d.pth'))
+    D_VAE.load_state_dict(torch.load('saved_models/D_VAE_%d.pth'))
+    D_LR.load_state_dict(torch.load('saved_models/D_LR_%d.pth'))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)
-    discriminator.apply(weights_init_normal)
+    D_VAE.apply(weights_init_normal)
+    D_LR.apply(weights_init_normal)
 
 # Loss weights
 lambda_pixel = 10
@@ -86,19 +93,23 @@ lambda_kl = 0.01
 # Optimizers
 optimizer_G = torch.optim.Adam(itertools.chain(generator.parameters(), encoder.parameters()),
                                 lr=opt.lr, betas=(opt.b1, opt.b2))
-optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_D_VAE = torch.optim.Adam(D_VAE.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_D_LR = torch.optim.Adam(D_LR.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 # Learning rate update schedulers
 lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(optimizer_D, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
+lr_scheduler_D_VAE = torch.optim.lr_scheduler.LambdaLR(optimizer_D_VAE, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
+lr_scheduler_D_LR = torch.optim.lr_scheduler.LambdaLR(optimizer_D_LR, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
 
 # Inputs & targets memory allocation
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 input_A = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
 input_B = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
 # Adversarial ground truths
-valid = Variable(Tensor(np.ones(patch)), requires_grad=False)
-fake = Variable(Tensor(np.zeros(patch)), requires_grad=False)
+valid1 = Variable(Tensor(np.ones(patch1)), requires_grad=False)
+valid2 = Variable(Tensor(np.ones(patch2)), requires_grad=False)
+fake1 = Variable(Tensor(np.zeros(patch1)), requires_grad=False)
+fake2 = Variable(Tensor(np.zeros(patch2)), requires_grad=False)
 
 # Dataset loader
 transforms_ = [ transforms.Resize((opt.img_height, opt.img_width*2), Image.BICUBIC),
@@ -109,13 +120,11 @@ dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transfo
 
 
 # Progress logger
-logger = Logger(opt.n_epochs, len(dataloader), opt.sample_interval)
+logger = Logger(opt.n_epochs, len(dataloader), opt.sample_interval, n_samples=opt.latent_dim)
 
 # ----------
 #  Training
 # ----------
-
-
 
 def reparameterization(mu, logvar):
     std = torch.exp(logvar / 2)
@@ -141,7 +150,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         fake_B = generator(real_A, encoded_z)
 
         # cVAE-GAN: Losses
-        loss_VAE_GAN = adversarial_loss(discriminator(fake_B), valid)
+        VAE_validity1, VAE_validity2 = D_VAE(fake_B)
+        loss_VAE_GAN = 0.5 * (adversarial_loss(VAE_validity1, valid1) + \
+                              adversarial_loss(VAE_validity2, valid2))
         loss_pixel = pixelwise_loss(fake_B, real_B)
         loss_kl = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
 
@@ -151,12 +162,14 @@ for epoch in range(opt.epoch, opt.n_epochs):
         _mu, _logvar = encoder(fake_B)
 
         # cLR-GAN: Losses
-        loss_GAN = adversarial_loss(discriminator(_fake_B), valid)
+        LR_validity1, LR_validity2 = D_LR(_fake_B)
+        loss_LR_GAN = (adversarial_loss(LR_validity1, valid1) + \
+                        adversarial_loss(LR_validity2, valid2)) / 2
         loss_latent = latent_loss(_mu, sampled_z)
 
         # Total loss
-        loss_G =    loss_GAN + \
-                    loss_VAE_GAN + \
+        loss_G =    loss_VAE_GAN + \
+                    loss_LR_GAN + \
                     lambda_pixel * loss_pixel + \
                     lambda_latent * loss_latent + \
                     lambda_kl * loss_kl
@@ -165,41 +178,67 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_G.step()
 
-        # ---------------------
-        #  Train Discriminator
-        # ---------------------
+        # --------------------------------
+        #  Train Discriminator (cVAE-GAN)
+        # --------------------------------
 
-        optimizer_D.zero_grad()
+        optimizer_D_VAE.zero_grad()
 
         # Real loss
-        pred_real = discriminator(real_B)
-        loss_real = adversarial_loss(pred_real, valid)
+        VAE_real1, VAE_real2 = D_VAE(real_B)
+        loss_real = (adversarial_loss(VAE_real1, valid1) + \
+                    adversarial_loss(VAE_real2, valid2)) / 2
 
         # Fake loss
-        pred_fake = discriminator(fake_B.detach())
-        loss_fake = adversarial_loss(pred_fake, fake)
+        VAE_fake1, VAE_fake2 = D_VAE(fake_B.detach())
+        loss_fake = (adversarial_loss(VAE_fake1, fake1) + \
+                    adversarial_loss(VAE_fake2, fake2)) / 2
 
         # Total loss
-        loss_D = 0.5 * (loss_real + loss_fake)
+        loss_D_VAE = 0.5 * (loss_real + loss_fake)
 
-        loss_D.backward()
-        optimizer_D.step()
+        loss_D_VAE.backward()
+        optimizer_D_VAE.step()
+
+        # -------------------------------
+        #  Train Discriminator (cLR-GAN)
+        # -------------------------------
+
+        optimizer_D_LR.zero_grad()
+
+        # Real loss
+        LR_real1, LR_real2 = D_LR(real_B)
+        loss_real = (adversarial_loss(LR_real1, valid1) + \
+                    adversarial_loss(LR_real2, valid2)) / 2
+
+        # Fake loss
+        LR_fake1, LR_fake2 = D_LR(_fake_B.detach())
+        loss_fake = (adversarial_loss(LR_fake1, fake1) + \
+                    adversarial_loss(LR_fake2, fake2)) / 2
+
+        # Total loss
+        loss_D_LR = 0.5 * (loss_real + loss_fake)
+
+        loss_D_LR.backward()
+        optimizer_D_LR.step()
 
         # --------------
         #  Log Progress
         # --------------
 
-        logger.log({'loss_D': loss_D, 'loss_G': loss_G, 'loss_pixel': loss_pixel,
-                    'loss_latent': loss_latent},
+        logger.log({'loss_D_VAE': loss_D_VAE, 'loss_D_LR': loss_D_LR,
+                    'loss_G': loss_G, 'loss_pixel': loss_pixel, 'loss_latent': loss_latent},
                     images={'real_B': real_B, 'fake_B': fake_B, 'real_A': real_A},
                     epoch=epoch, batch=i)
 
     # Update learning rates
     lr_scheduler_G.step()
-    lr_scheduler_D.step()
+    lr_scheduler_D_VAE.step()
+    lr_scheduler_D_LR.step()
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
         torch.save(generator.state_dict(), 'saved_models/generator_%d.pth' % epoch)
         torch.save(encoder.state_dict(), 'saved_models/encoder_%d.pth' % epoch)
-        torch.save(discriminator.state_dict(), 'saved_models/discriminator_%d.pth' % epoch)
+        torch.save(D_VAE.state_dict(), 'saved_models/D_VAE_%d.pth' % epoch)
+        torch.save(D_LR.state_dict(), 'saved_models/D_LR_%d.pth' % epoch)
