@@ -175,7 +175,7 @@ for epoch in range(opt.n_epochs):
 
         # Loss measures generator's ability to fool the discriminator
         # Train on fake images
-        gen_validity = discriminator(fake_imgs)
+        gen_validity = discriminator(gen_imgs)
         gen_validity.backward(valid)
 
         optimizer_G.step()
