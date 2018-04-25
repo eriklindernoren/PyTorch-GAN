@@ -37,10 +37,10 @@ cuda = True if torch.cuda.is_available() else False
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm2d') != -1:
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
 
 class Generator(nn.Module):
     def __init__(self):
@@ -187,7 +187,7 @@ for epoch in range(opt.n_epochs):
         diff = torch.mean(gamma * d_loss_real - d_loss_fake)
 
         # Update weight term for fake samples
-        k = k + lambda_k * diff.data[0]
+        k = k + lambda_k * diff.item()
         k = min(max(k, 0), 1) # Constraint to interval [0, 1]
 
         # Update convergence metric
@@ -198,7 +198,7 @@ for epoch in range(opt.n_epochs):
         #--------------
 
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] -- M: %f, k: %f" % (epoch, opt.n_epochs, i, len(dataloader),
-                                                            d_loss.data[0], g_loss.data[0],
+                                                            d_loss.item(), g_loss.item(),
                                                             M, k))
 
         batches_done = epoch * len(dataloader) + i

@@ -43,11 +43,11 @@ cuda = True if torch.cuda.is_available() else False
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
-        m.weight.data.normal_(0.0, 0.02)
+    if classname.find('Conv') != -1:
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
     elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_features=64, out_features=64):
@@ -282,7 +282,7 @@ for epoch in range(opt.n_epochs):
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [CLF acc: %3d%% (%3d%%), target_acc: %3d%% (%3d%%)]" %
                                                             (epoch, opt.n_epochs,
                                                             i, len(dataloader_A),
-                                                            d_loss.data[0], g_loss.data[0],
+                                                            d_loss.item(), g_loss.item(),
                                                             100*acc, 100*np.mean(task_performance),
                                                             100*target_acc, 100*np.mean(target_performance)))
 

@@ -91,12 +91,13 @@ lambda_latent = 0.5
 lambda_kl = 0.01
 
 # Optimizers
-optimizer_G = torch.optim.Adam(itertools.chain(generator.parameters(), encoder.parameters()),
-                                lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_E = torch.optim.Adam(encoder.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D_VAE = torch.optim.Adam(D_VAE.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D_LR = torch.optim.Adam(D_LR.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 # Learning rate update schedulers
+lr_scheduler_E = torch.optim.lr_scheduler.LambdaLR(optimizer_E, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
 lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
 lr_scheduler_D_VAE = torch.optim.lr_scheduler.LambdaLR(optimizer_D_VAE, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
 lr_scheduler_D_LR = torch.optim.lr_scheduler.LambdaLR(optimizer_D_LR, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
@@ -139,10 +140,11 @@ for epoch in range(opt.epoch, opt.n_epochs):
         real_A = Variable(input_A.copy_(batch['A']))
         real_B = Variable(input_B.copy_(batch['B']))
 
-        # ------------------
-        #  Train Generators
-        # ------------------
+        # -----------------------------
+        #  Train Generator and Encoder
+        # -----------------------------
 
+        optimizer_E.zero_grad()
         optimizer_G.zero_grad()
 
         # Produce output using encoding of B (cVAE-GAN)
@@ -152,17 +154,13 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Produce output using sampled z (cLR-GAN)
         sampled_z = Variable(Tensor(np.random.normal(0, 1, (mu.size(0), opt.latent_dim))))
-        _fake_B = generator(real_B, sampled_z)
+        _fake_B = generator(real_A, sampled_z)
 
         # Pixelwise loss of translated image by VAE
         loss_pixel = pixelwise_loss(fake_B, real_B)
 
         # Kullback-Leibler divergence of encoded B
         loss_kl = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
-
-        # Latent L1 loss (using mean)
-        _mu, _ = encoder(fake_B)
-        loss_latent = latent_loss(_mu, sampled_z)
 
         # Discriminators evaluate generated samples
         VAE_validity1, VAE_validity2 = D_VAE(fake_B)
@@ -174,14 +172,20 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_LR_GAN =   (adversarial_loss(LR_validity1, valid1) + \
                         adversarial_loss(LR_validity2, valid2)) / 2
 
-        # Total loss
-        loss_G =    loss_VAE_GAN + \
+        # Shared losses between encoder and generator
+        loss_GE =   loss_VAE_GAN + \
                     loss_LR_GAN + \
                     lambda_pixel * loss_pixel + \
-                    lambda_latent * loss_latent + \
                     lambda_kl * loss_kl
 
-        loss_G.backward()
+        loss_GE.backward()
+        optimizer_E.step()
+
+        # Latent L1 loss
+        _mu, _ = encoder(generator(real_A, sampled_z))
+        loss_latent = lambda_latent * latent_loss(_mu, sampled_z)
+
+        loss_latent.backward()
         optimizer_G.step()
 
         # --------------------------------
@@ -201,7 +205,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
                     adversarial_loss(pred_gen2, fake2)) / 2
 
         # Total loss
-        loss_D_VAE = 0.5 * (loss_real + loss_fake)
+        loss_D_VAE = (loss_real + loss_fake) / 2
 
         loss_D_VAE.backward()
         optimizer_D_VAE.step()
@@ -233,7 +237,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # --------------
 
         logger.log({'loss_D_VAE': loss_D_VAE, 'loss_D_LR': loss_D_LR,
-                    'loss_G': loss_G, 'loss_pixel': loss_pixel, 'loss_latent': loss_latent},
+                    'loss_G': loss_GE, 'loss_pixel': loss_pixel, 'loss_latent': loss_latent},
                     images={'real_B': real_B, 'fake_B': fake_B, 'real_A': real_A},
                     epoch=epoch, batch=i)
 

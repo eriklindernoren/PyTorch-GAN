@@ -54,10 +54,10 @@ cuda = True if torch.cuda.is_available() else False
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
     elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
 
 # Calculate output of image discriminator (PatchGAN)
 patch_h, patch_w = int(opt.hr_height / 2**4), int(opt.hr_width / 2**4)
@@ -169,7 +169,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
                                                             (epoch, opt.n_epochs, i, len(dataloader),
-                                                            loss_D.data[0], loss_G.data[0]))
+                                                            loss_D.item(), loss_G.item()))
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
