@@ -107,7 +107,9 @@ Many image-to-image translation problems are ambiguous, as a single input image 
 
 #### Run Example
 ```
-$ cd implementations/bicyclegan/
+$ cd data/
+$ bash download_pix2pix_dataset.sh edges2shoes
+$ cd ../implementations/bicyclegan/
 $ python3 bicyclegan.py
 ```
 
