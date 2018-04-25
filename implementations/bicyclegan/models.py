@@ -136,7 +136,6 @@ class Discriminator(nn.Module):
             *discriminator_block(64, 128, 2, True),
             *discriminator_block(128, 256, 2, True),
         )
-
         # Two output patches
         self.out1 = nn.Conv2d(256, 1, 3, 1, 1)
         self.out2 = nn.Sequential(

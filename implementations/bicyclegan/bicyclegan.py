@@ -129,7 +129,8 @@ logger = Logger(opt.n_epochs, len(dataloader), opt.sample_interval, n_samples=op
 def reparameterization(mu, logvar):
     std = torch.exp(logvar / 2)
     sampled_z = Variable(Tensor(np.random.normal(0, 1, (mu.size(0), opt.latent_dim))))
-    return (sampled_z * std) + mu
+    z = sampled_z * std + mu
+    return z
 
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
@@ -144,28 +145,34 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        # cVAE-GAN: Translate using z extracted from B
+        # Produce output using encoding of B (cVAE-GAN)
         mu, logvar = encoder(real_B)
         encoded_z = reparameterization(mu, logvar)
         fake_B = generator(real_A, encoded_z)
 
-        # cVAE-GAN: Losses
-        VAE_validity1, VAE_validity2 = D_VAE(fake_B)
-        loss_VAE_GAN = 0.5 * (adversarial_loss(VAE_validity1, valid1) + \
-                              adversarial_loss(VAE_validity2, valid2))
-        loss_pixel = pixelwise_loss(fake_B, real_B)
-        loss_kl = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
-
-        # cLR-GAN: Translate using sampled z
+        # Produce output using sampled z (cLR-GAN)
         sampled_z = Variable(Tensor(np.random.normal(0, 1, (mu.size(0), opt.latent_dim))))
         _fake_B = generator(real_B, sampled_z)
-        _mu, _logvar = encoder(fake_B)
 
-        # cLR-GAN: Losses
-        LR_validity1, LR_validity2 = D_LR(_fake_B)
-        loss_LR_GAN = (adversarial_loss(LR_validity1, valid1) + \
-                        adversarial_loss(LR_validity2, valid2)) / 2
+        # Pixelwise loss of translated image by VAE
+        loss_pixel = pixelwise_loss(fake_B, real_B)
+
+        # Kullback-Leibler divergence of encoded B
+        loss_kl = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
+
+        # Latent L1 loss (using mean)
+        _mu, _ = encoder(fake_B)
         loss_latent = latent_loss(_mu, sampled_z)
+
+        # Discriminators evaluate generated samples
+        VAE_validity1, VAE_validity2 = D_VAE(fake_B)
+        LR_validity1, LR_validity2 = D_LR(_fake_B)
+
+        # Adversarial losses
+        loss_VAE_GAN =  (adversarial_loss(VAE_validity1, valid1) + \
+                        adversarial_loss(VAE_validity2, valid2)) / 2
+        loss_LR_GAN =   (adversarial_loss(LR_validity1, valid1) + \
+                        adversarial_loss(LR_validity2, valid2)) / 2
 
         # Total loss
         loss_G =    loss_VAE_GAN + \
@@ -175,7 +182,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
                     lambda_kl * loss_kl
 
         loss_G.backward()
-
         optimizer_G.step()
 
         # --------------------------------
@@ -185,14 +191,14 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D_VAE.zero_grad()
 
         # Real loss
-        VAE_real1, VAE_real2 = D_VAE(real_B)
-        loss_real = (adversarial_loss(VAE_real1, valid1) + \
-                    adversarial_loss(VAE_real2, valid2)) / 2
+        pred_real1, pred_real2 = D_VAE(real_B)
+        loss_real = (adversarial_loss(pred_real1, valid1) + \
+                    adversarial_loss(pred_real2, valid2)) / 2
 
-        # Fake loss
-        VAE_fake1, VAE_fake2 = D_VAE(fake_B.detach())
-        loss_fake = (adversarial_loss(VAE_fake1, fake1) + \
-                    adversarial_loss(VAE_fake2, fake2)) / 2
+        # Fake loss (D_LR evaluates samples produced by encoded B)
+        pred_gen1, pred_gen2 = D_VAE(fake_B.detach())
+        loss_fake = (adversarial_loss(pred_gen1, fake1) + \
+                    adversarial_loss(pred_gen2, fake2)) / 2
 
         # Total loss
         loss_D_VAE = 0.5 * (loss_real + loss_fake)
@@ -207,14 +213,14 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D_LR.zero_grad()
 
         # Real loss
-        LR_real1, LR_real2 = D_LR(real_B)
-        loss_real = (adversarial_loss(LR_real1, valid1) + \
-                    adversarial_loss(LR_real2, valid2)) / 2
+        pred_real1, pred_real2 = D_LR(real_B)
+        loss_real = (adversarial_loss(pred_real1, valid1) + \
+                    adversarial_loss(pred_real2, valid2)) / 2
 
-        # Fake loss
-        LR_fake1, LR_fake2 = D_LR(_fake_B.detach())
-        loss_fake = (adversarial_loss(LR_fake1, fake1) + \
-                    adversarial_loss(LR_fake2, fake2)) / 2
+        # Fake loss (D_LR evaluates samples produced by sampled z)
+        pred_gen1, pred_gen2 = D_LR(_fake_B.detach())
+        loss_fake = (adversarial_loss(pred_gen1, fake1) + \
+                    adversarial_loss(pred_gen2, fake2)) / 2
 
         # Total loss
         loss_D_LR = 0.5 * (loss_real + loss_fake)
