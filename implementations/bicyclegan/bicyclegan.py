@@ -115,6 +115,13 @@ logger = Logger(opt.n_epochs, len(dataloader), opt.sample_interval)
 #  Training
 # ----------
 
+
+
+def reparameterization(mu, logvar):
+    std = torch.exp(logvar / 2)
+    sampled_z = Variable(Tensor(np.random.normal(0, 1, (mu.size(0), opt.latent_dim))))
+    return (sampled_z * std) + mu
+
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
 
@@ -128,24 +135,24 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        # Use extracted latent from A
-        enc_A = encoder(real_A)
-        fake_A = generator(real_B, enc_A)
-        enc_fake_A = encoder(fake_A)
-        # Use randomly sampled latent
-        z = Variable(Tensor(np.random.normal(0, 1, enc_A.shape)))
-        _fake_A = generator(real_A, z)
+        # cVAE-GAN: Translate using z extracted from B
+        mu, logvar = encoder(real_B)
+        encoded_z = reparameterization(mu, logvar)
+        fake_B = generator(real_A, encoded_z)
 
-        # Adversarial
-        loss_GAN = adversarial_loss(discriminator(_fake_A), valid)
-        # VAE Adversarial
-        loss_VAE_GAN = adversarial_loss(discriminator(fake_A), valid)
-        # Pixel
-        loss_pixel = pixelwise_loss(fake_A, real_A)
-        # Latent
-        loss_latent = latent_loss(enc_fake_A, Variable(enc_A.data, requires_grad=False))
-        # KL
-        loss_kl = kl_loss(enc_A, z)
+        # cVAE-GAN: Losses
+        loss_VAE_GAN = adversarial_loss(discriminator(fake_B), valid)
+        loss_pixel = pixelwise_loss(fake_B, real_B)
+        loss_kl = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
+
+        # cLR-GAN: Translate using sampled z
+        sampled_z = Variable(Tensor(np.random.normal(0, 1, (mu.size(0), opt.latent_dim))))
+        _fake_B = generator(real_B, sampled_z)
+        _mu, _logvar = encoder(fake_B)
+
+        # cLR-GAN: Losses
+        loss_GAN = adversarial_loss(discriminator(_fake_B), valid)
+        loss_latent = latent_loss(_mu, sampled_z)
 
         # Total loss
         loss_G =    loss_GAN + \
@@ -165,11 +172,11 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D.zero_grad()
 
         # Real loss
-        pred_real = discriminator(real_A)
+        pred_real = discriminator(real_B)
         loss_real = adversarial_loss(pred_real, valid)
 
         # Fake loss
-        pred_fake = discriminator(fake_A.detach())
+        pred_fake = discriminator(fake_B.detach())
         loss_fake = adversarial_loss(pred_fake, fake)
 
         # Total loss
@@ -184,7 +191,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         logger.log({'loss_D': loss_D, 'loss_G': loss_G, 'loss_pixel': loss_pixel,
                     'loss_latent': loss_latent},
-                    images={'real_B': real_B, 'fake_A': fake_A, 'real_A': real_A},
+                    images={'real_B': real_B, 'fake_B': fake_B, 'real_A': real_A},
                     epoch=epoch, batch=i)
 
     # Update learning rates
@@ -194,4 +201,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
         torch.save(generator.state_dict(), 'saved_models/generator_%d.pth' % epoch)
+        torch.save(encoder.state_dict(), 'saved_models/encoder_%d.pth' % epoch)
         torch.save(discriminator.state_dict(), 'saved_models/discriminator_%d.pth' % epoch)
