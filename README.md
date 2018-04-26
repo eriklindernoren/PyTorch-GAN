@@ -57,7 +57,7 @@ $ python3 acgan.py
 ```
 
 <p align="center">
-    <img src="figures/acgan.gif" width="360"\>
+    <img src="assets/acgan.gif" width="360"\>
 </p>
 
 ### Adversarial Autoencoder
@@ -165,7 +165,7 @@ $ python3 cgan.py
 ```
 
 <p align="center">
-    <img src="figures/cgan.gif" width="360"\>
+    <img src="assets/cgan.gif" width="360"\>
 </p>
 
 ### CycleGAN
@@ -192,7 +192,7 @@ $ python3 cyclegan.py --dataset_name apple2orange
 ```
 
 <p align="center">
-    <img src="figures/cyclegan.png" width="240"\>
+    <img src="assets/cyclegan.png" width="240"\>
 </p>
 <p align="center">
     Rows from top to bottom: (1) Original images from both domains (2) Translated images <br>
@@ -217,7 +217,7 @@ $ python3 dcgan.py
 ```
 
 <p align="center">
-    <img src="figures/dcgan.gif" width="240"\>
+    <img src="assets/dcgan.gif" width="240"\>
 </p>
 
 ### DiscoGAN
@@ -244,7 +244,7 @@ $ python3 discogan.py --dataset_name edges2shoes
 ```
 
 <p align="center">
-    <img src="figures/discogan.png" width="480"\>
+    <img src="assets/discogan.png" width="480"\>
 </p>
 <p align="center">
     Rows from top to bottom: (1) Real image from domain A (2) Translated image from <br>
@@ -307,7 +307,7 @@ $ python3 gan.py
 ```
 
 <p align="center">
-    <img src="figures/gan.gif" width="240"\>
+    <img src="assets/gan.gif" width="240"\>
 </p>
 
 ### InfoGAN
@@ -328,14 +328,14 @@ $ python3 infogan.py
 ```
 
 <p align="center">
-    <img src="figures/infogan.gif" width="360"\>
+    <img src="assets/infogan.gif" width="360"\>
 </p>
 <p align="center">
     Result of varying categorical latent variable by column.
 </p>
 
 <p align="center">
-    <img src="figures/infogan.png" width="360"\>
+    <img src="assets/infogan.png" width="360"\>
 </p>
 <p align="center">
     Result of varying continuous latent variable by row.
@@ -382,7 +382,7 @@ $ python3 pix2pix.py --dataset_name facades
 ```
 
 <p align="center">
-    <img src="figures/pix2pix.png" width="480"\>
+    <img src="assets/pix2pix.png" width="480"\>
 </p>
 <p align="center">
     Rows from top to bottom: (1) The condition for the generator (2) Generated image <br>
@@ -413,7 +413,7 @@ $ python3 pixelda.py
 | PixelDA      | 95%       |
 
 <p align="center">
-    <img src="figures/pixelda.png" width="480"\>
+    <img src="assets/pixelda.png" width="480"\>
 </p>
 <p align="center">
     Rows from top to bottom: (1) Real images from MNIST (2) Translated images from <br>
@@ -460,7 +460,7 @@ $ python3 srgan.py
 ```
 
 <p align="center">
-    <img src="figures/srgan.png" width="240"\>
+    <img src="assets/srgan.png" width="240"\>
 </p>
 <p align="center">
     Rows from top to bottom: (1) Generated sample by Super-resolution GAN (2) The full <br>
@@ -502,5 +502,5 @@ $ python3 wgan_gp.py
 ```
 
 <p align="center">
-    <img src="figures/wgan_gp.gif" width="240"\>
+    <img src="assets/wgan_gp.gif" width="240"\>
 </p>
