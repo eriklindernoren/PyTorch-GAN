@@ -18,6 +18,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     + [Boundary-Seeking GAN](#boundary-seeking-gan)
     + [Conditional GAN](#conditional-gan)
     + [Context-Conditional GAN](#context-conditional-gan)
+    + [Coupled GAN](#coupled-gan)
     + [CycleGAN](#cyclegan)
     + [Deep Convolutional GAN](#deep-convolutional-gan)
     + [DiscoGAN](#discogan)
@@ -168,6 +169,23 @@ $ python3 cgan.py
 <p align="center">
     <img src="assets/cgan.gif" width="360"\>
 </p>
+
+### Coupled GAN
+_Coupled Generative Adversarial Networks_
+
+#### Authors
+Ming-Yu Liu, Oncel Tuzel
+
+#### Abstract
+We propose coupled generative adversarial network (CoGAN) for learning a joint distribution of multi-domain images. In contrast to the existing approaches, which require tuples of corresponding images in different domains in the training set, CoGAN can learn a joint distribution without any tuple of corresponding images. It can learn a joint distribution with just samples drawn from the marginal distributions. This is achieved by enforcing a weight-sharing constraint that limits the network capacity and favors a joint distribution solution over a product of marginal distributions one. We apply CoGAN to several joint distribution learning tasks, including learning a joint distribution of color and depth images, and learning a joint distribution of face images with different attributes. For each task it successfully learns the joint distribution without any tuple of corresponding images. We also demonstrate its applications to domain adaptation and image transformation.
+
+[[Paper]](https://arxiv.org/abs/1606.07536) [[Code]](implementations/cogan/cogan.py)
+
+#### Run Example
+```
+$ cd implementations/cogan/
+$ python3 cogan.py
+```
 
 ### CycleGAN
 _Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks_
