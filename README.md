@@ -29,6 +29,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     + [Pix2Pix](#pix2pix)
     + [PixelDA](#pixelda)
     + [Semi-Supervised GAN](#semi-supervised-gan)
+    + [Softmax GAN](#softmax-gan)
     + [Super-Resolution GAN](#super-resolution-gan)
     + [Wasserstein GAN](#wasserstein-gan)
     + [Wasserstein GAN GP](#wasserstein-gan-gp)
@@ -435,6 +436,23 @@ We extend Generative Adversarial Networks (GANs) to the semi-supervised context 
 ```
 $ cd implementations/sgan/
 $ python3 sgan.py
+```
+
+### Softmax GAN
+_Softmax GAN_
+
+#### Authors
+Min Lin
+
+#### Abstract
+Softmax GAN is a novel variant of Generative Adversarial Network (GAN). The key idea of Softmax GAN is to replace the classification loss in the original GAN with a softmax cross-entropy loss in the sample space of one single batch. In the adversarial learning of N real training samples and M generated samples, the target of discriminator training is to distribute all the probability mass to the real samples, each with probability 1M, and distribute zero probability to generated data. In the generator training phase, the target is to assign equal probability to all data points in the batch, each with probability 1M+N. While the original GAN is closely related to Noise Contrastive Estimation (NCE), we show that Softmax GAN is the Importance Sampling version of GAN. We futher demonstrate with experiments that this simple change stabilizes GAN training.
+
+[[Paper]](https://arxiv.org/abs/1704.06191) [[Code]](implementations/softmax_gan/softmax_gan.py)
+
+#### Run Example
+```
+$ cd implementations/softmax_gan/
+$ python3 softmax_gan.py
 ```
 
 ### Super-Resolution GAN
