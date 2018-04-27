@@ -75,10 +75,10 @@ if cuda:
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load('saved_models/generator_%d.pth'))
-    encoder.load_state_dict(torch.load('saved_models/encoder_%d.pth'))
-    D_VAE.load_state_dict(torch.load('saved_models/D_VAE_%d.pth'))
-    D_LR.load_state_dict(torch.load('saved_models/D_LR_%d.pth'))
+    generator.load_state_dict(torch.load('saved_models/generator_%d.pth' % opt.epoch))
+    encoder.load_state_dict(torch.load('saved_models/encoder_%d.pth' % opt.epoch))
+    D_VAE.load_state_dict(torch.load('saved_models/D_VAE_%d.pth' % opt.epoch))
+    D_LR.load_state_dict(torch.load('saved_models/D_LR_%d.pth' % opt.epoch))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)

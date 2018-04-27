@@ -188,6 +188,13 @@ $ cd implementations/cogan/
 $ python3 cogan.py
 ```
 
+<p align="center">
+    <img src="assets/cogan.gif" width="360"\>
+</p>
+<p align="center">
+    Generated MNIST and MNIST-M images
+</p>
+
 ### CycleGAN
 _Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks_
 
