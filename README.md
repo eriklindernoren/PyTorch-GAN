@@ -190,7 +190,10 @@ $ python3 cogan.py
 <p align="center">
     <img src="assets/cogan.gif" width="360"\>
 </p>
-
+<p align="center">
+    First for rows shows generated MNIST images. Last four rows show <br>
+    generated MNIST-M images.
+</p>
 
 ### CycleGAN
 _Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks_
