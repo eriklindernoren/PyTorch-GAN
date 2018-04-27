@@ -191,7 +191,7 @@ $ python3 cogan.py
     <img src="assets/cogan.gif" width="360"\>
 </p>
 <p align="center">
-    First for rows shows generated MNIST images. Last four rows show <br>
+    First four rows shows generated MNIST images. Last four rows show <br>
     generated MNIST-M images.
 </p>
 
