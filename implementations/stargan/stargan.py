@@ -41,7 +41,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
 parser.add_argument('--dataset_name', type=str, default="img_align_celeba", help='name of the dataset')
-parser.add_argument('--batch_size', type=int, default=1, help='size of the batches')
+parser.add_argument('--batch_size', type=int, default=16, help='size of the batches')
 parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
@@ -50,7 +50,7 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--img_height', type=int, default=128, help='size of image height')
 parser.add_argument('--img_width', type=int, default=128, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
-parser.add_argument('--sample_interval', type=int, default=1000, help='interval between sampling of images from generators')
+parser.add_argument('--sample_interval', type=int, default=400, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
 parser.add_argument('--residual_blocks', type=int, default=6, help='number of residual blocks in generator')
 parser.add_argument('--selected_attrs', '--list', nargs='+', help='selected attributes for the CelebA dataset',
@@ -60,6 +60,7 @@ opt = parser.parse_args()
 print(opt)
 
 c_dim = len(opt.selected_attrs)
+img_shape = (opt.channels, opt.img_height, opt.img_width)
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -84,8 +85,8 @@ lambda_gp = 10
 patch = (1, opt.img_height//2**4, opt.img_width//2**4)
 
 # Initialize generator and discriminator
-generator = GeneratorResNet(res_blocks=opt.residual_blocks, c_dim=c_dim)
-discriminator = Discriminator(c_dim=c_dim)
+generator = GeneratorResNet(img_shape=img_shape, res_blocks=opt.residual_blocks, c_dim=c_dim)
+discriminator = Discriminator(img_shape=img_shape, c_dim=c_dim)
 
 if cuda:
     generator = generator.cuda()
@@ -121,19 +122,14 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
     """Calculates the gradient penalty loss for WGAN GP"""
     # Random weight term for interpolation between real and fake samples
     alpha = Tensor(np.random.random((real_samples.size(0), 1, 1, 1)))
-
     # Get random interpolation between real and fake samples
     interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
-
     d_interpolates, _ = D(interpolates)
-
     fake = Variable(Tensor(np.ones(d_interpolates.shape)), requires_grad=False)
-
     # Get gradient w.r.t. interpolates
     gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
                               grad_outputs=fake, create_graph=True, retain_graph=True,
                               only_inputs=True)[0]
-
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
@@ -146,40 +142,36 @@ label_changes = [
     ((4, 0),)                   # Set to old
 ]
 
-def sample_images(batches_done, input_imgs):
+def sample_images(batches_done, sample_imgs, sample_labels):
     """Saves a generated sample of domain translations"""
     img_samples = None
-    for img, label in input_imgs:
+    for i in range(10):
+        img, label = sample_imgs[i], sample_labels[i]
         # Repeat for number of label changes
         imgs = img.repeat(c_dim, 1, 1, 1)
         labels = label.repeat(c_dim, 1)
         # Make changes to labels
-        for row, changes in enumerate(label_changes):
+        for sample_i, changes in enumerate(label_changes):
             for col, val in changes:
-                if val == -1:
-                    # Flip label
-                    labels[row, col] = 1 - labels[row, col]
-                else:
-                    # Set to value
-                    labels[row, col] = val
+                labels[sample_i, col] = 1 - labels[sample_i, col] if val == -1 else val
         # Generate translations
         gen_imgs = generator(imgs, labels)
-        # Concatenate by width
+        # Concatenate images by width
         gen_imgs = torch.cat([x for x in gen_imgs.data], -1)
-        img_sample = torch.cat((img[0].data, gen_imgs), -1)
+        img_sample = torch.cat((img.data, gen_imgs), -1)
         # Add as row to generated samples
         img_samples = img_sample if img_samples is None else torch.cat((img_samples, img_sample), -2)
 
     save_image(img_samples.view(1, *img_samples.shape), 'images/%s.png' % batches_done, normalize=True)
 
+def get_target(labels):
+    """Constructs patch formatted target labels"""
+    patch_labels = labels.view(*labels.shape, 1, 1).repeat(1, 1, *patch[1:])
+    return patch_labels
+
 # ----------
 #  Training
 # ----------
-
-def get_target(labels):
-    """Converts labels into format of discriminator output"""
-    target_labels = labels.view(*labels.shape, 1, 1).repeat(1, 1, *patch[1:])
-    return target_labels
 
 saved_samples = []
 start_time = time.time()
@@ -201,27 +193,23 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_D.zero_grad()
 
-        # Train on real images
+        # Real images
         real_validity, pred_cls = discriminator(imgs)
-        loss_D_adv_real = - torch.mean(real_validity)
-        loss_D_cls = criterion_cls(pred_cls, get_target(labels))
-
-        # Train on fake images
+        # Fake images
         fake_validity, _ = discriminator(fake_imgs.detach())
-        loss_D_adv_fake = torch.mean(fake_validity)
-
         # Gradient penalty
         gradient_penalty = compute_gradient_penalty(discriminator, imgs.data, fake_imgs.data)
-
-        loss_D_adv = (loss_D_adv_real + loss_D_adv_fake) / 2
-
+        # Adversarial loss
+        loss_D_adv = - torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp * gradient_penalty
+        # Classification loss
+        loss_D_cls = criterion_cls(pred_cls, get_target(labels))
         # Total loss
-        loss_D =    loss_D_adv + \
-                    lambda_cls * loss_D_cls + \
-                    lambda_gp * gradient_penalty
+        loss_D = loss_D_adv + lambda_cls * loss_D_cls
 
-        loss_D.backward(retain_graph=True)
+        loss_D.backward()
         optimizer_D.step()
+
+        optimizer_G.zero_grad()
 
         # Every n_critic times update generator
         if i % opt.n_critic == 0:
@@ -230,17 +218,15 @@ for epoch in range(opt.epoch, opt.n_epochs):
             #  Train Generator
             # -----------------
 
-            optimizer_G.zero_grad()
-
             # Translate and reconstruct image
             gen_imgs = generator(imgs, c)
             recov_imgs = generator(gen_imgs, labels)
             # Discriminator evaluates translated image
-            pred_fake, pred_gen_c = discriminator(gen_imgs)
+            fake_validity, pred_cls = discriminator(gen_imgs)
             # Adversarial loss
-            loss_G_adv = - torch.mean(pred_fake)
+            loss_G_adv = - torch.mean(fake_validity)
             # Classification loss
-            loss_G_cls = criterion_cls(pred_gen_c, get_target(c))
+            loss_G_cls = criterion_cls(pred_cls, get_target(c))
             # Reconstruction loss
             loss_G_rec = criterion_cycle(recov_imgs, imgs)
             # Total loss
@@ -267,15 +253,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
                                                             loss_G_adv.item(), loss_G_cls.item(),
                                                             loss_G_rec.item(), time_left))
 
-
-            # Save image and label pair
-            saved_samples.append((imgs, labels))
-            if len(saved_samples) > 10:
-                saved_samples.pop(0)
-
             # If at sample interval sample and save image
             if batches_done % opt.sample_interval == 0:
-                sample_images(batches_done, saved_samples)
+                sample_images(batches_done, imgs[:10], labels[:10])
 
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
