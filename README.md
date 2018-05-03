@@ -513,7 +513,7 @@ Recent studies have shown remarkable success in image-to-image translation for t
 #### Run Example
 ```
 $ cd implementations/stargan/
-<follow steps at the top of srgan.py>
+<follow steps at the top of stargan.py>
 $ python3 softmax_gan.py
 ```
 
