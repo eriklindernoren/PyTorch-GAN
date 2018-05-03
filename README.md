@@ -32,6 +32,7 @@ See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
     + [PixelDA](#pixelda)
     + [Semi-Supervised GAN](#semi-supervised-gan)
     + [Softmax GAN](#softmax-gan)
+    + [StarGAN](#stargan)
     + [Super-Resolution GAN](#super-resolution-gan)
     + [Wasserstein GAN](#wasserstein-gan)
     + [Wasserstein GAN GP](#wasserstein-gan-gp)
@@ -495,6 +496,24 @@ Softmax GAN is a novel variant of Generative Adversarial Network (GAN). The key 
 #### Run Example
 ```
 $ cd implementations/softmax_gan/
+$ python3 softmax_gan.py
+```
+
+### StarGAN
+_Yunjey Choi, Minje Choi, Munyoung Kim, Jung-Woo Ha, Sunghun Kim, Jaegul Choo_
+
+#### Authors
+Min Lin
+
+#### Abstract
+Recent studies have shown remarkable success in image-to-image translation for two domains. However, existing approaches have limited scalability and robustness in handling more than two domains, since different models should be built independently for every pair of image domains. To address this limitation, we propose StarGAN, a novel and scalable approach that can perform image-to-image translations for multiple domains using only a single model. Such a unified model architecture of StarGAN allows simultaneous training of multiple datasets with different domains within a single network. This leads to StarGAN's superior quality of translated images compared to existing models as well as the novel capability of flexibly translating an input image to any desired target domain. We empirically demonstrate the effectiveness of our approach on a facial attribute transfer and a facial expression synthesis tasks.
+
+[[Paper]](https://arxiv.org/abs/1711.09020) [[Code]](implementations/stargan/stargan.py)
+
+#### Run Example
+```
+$ cd implementations/stargan/
+<follow steps at the top of srgan.py>
 $ python3 softmax_gan.py
 ```
 
