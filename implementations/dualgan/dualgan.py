@@ -25,12 +25,12 @@ os.makedirs('images', exist_ok=True)
 parser = argparse.ArgumentParser()
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
 parser.add_argument('--batch_size', type=int, default=1, help='size of the batches')
-parser.add_argument('--dataset_name', type=str, default='edges2shoes', help='name of the dataset')
+parser.add_argument('--dataset_name', type=str, default='facades', help='name of the dataset')
 parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--img_size', type=int, default=128, help='size of each image dimension')
+parser.add_argument('--img_size', type=int, default=64, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--n_critic', type=int, default=5, help='number of training steps for discriminator per iter')
 parser.add_argument('--sample_interval', type=int, default=200, help='interval betwen image samples')
@@ -100,21 +100,15 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
     """Calculates the gradient penalty loss for WGAN GP"""
     # Random weight term for interpolation between real and fake samples
     alpha = FloatTensor(np.random.random((real_samples.size(0), 1, 1, 1)))
-
     # Get random interpolation between real and fake samples
-    interpolates = alpha * real_samples + ((1 - alpha) * fake_samples)
-
-    interpolates = Variable(interpolates, requires_grad=True)
-
+    interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
     d_interpolates = D(interpolates)
-
     fake = Variable(FloatTensor(real_samples.shape[0], *patch).fill_(1.0), requires_grad=False)
-
     # Get gradient w.r.t. interpolates
     gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
                               grad_outputs=fake, create_graph=True, retain_graph=True,
                               only_inputs=True)[0]
-
+    gradients = gradients.view(gradients.size(0), -1)
     gradient_penalty = lambda_gp * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
@@ -125,126 +119,96 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
 # Keeps the 5 latest image samples
 image_samples = []
 
+batches_done = 0
 for epoch in range(opt.n_epochs):
+    for i, batch in enumerate(dataloader):
 
-    # Batch iterator
-    data_iterator = iter(dataloader)
+        batch_size = batch['A'].size(0)
 
-    for i in range(len(data_iterator) // opt.n_critic):
-        # Train discriminator for n_critic times
-        for _ in range(opt.n_critic):
-            optimizer_G.zero_grad()
+        # Configure input
+        imgs_A = Variable(batch['A'].type(FloatTensor))
+        imgs_B = Variable(batch['B'].type(FloatTensor))
 
-            batch = data_iterator.next()
+        # ----------------------
+        #  Train Discriminators
+        # ----------------------
 
-            batch_size = batch['A'].size(0)
+        optimizer_D_A.zero_grad()
+        optimizer_D_B.zero_grad()
 
-            # Adversarial ground truths
-            valid = Variable(FloatTensor(batch_size, *patch).fill_(-1.0), requires_grad=False)
-            fake = Variable(FloatTensor(batch_size, *patch).fill_(1.0), requires_grad=False)
-
-            # Configure input
-            imgs_A = Variable(batch['A'].type(FloatTensor))
-            imgs_B = Variable(batch['B'].type(FloatTensor))
-
-            # ----------------------
-            #  Train Discriminators
-            # ----------------------
-
-            optimizer_D_A.zero_grad()
-            optimizer_D_B.zero_grad()
-
-            # Generate a batch of images
-            fake_A = G_BA(imgs_B)
-            fake_B = G_AB(imgs_A)
-
-            #----------
-            # Domain A
-            #----------
-
-            # Discriminate between real and fake samples
-            real_validity_A = D_A(imgs_A)
-            real_validity_A.backward(valid)
-            fake_validity_A = D_A(fake_A)
-            fake_validity_A.backward(fake)
-
-            # Compute gradient penalty for improved wasserstein training
-            gp_A = compute_gradient_penalty(D_A, imgs_A.data, fake_A.data)
-            gp_A.backward()
-
-            #----------
-            # Domain B
-            #----------
-
-            # Discriminate between real and fake samples
-            real_validity_B = D_B(imgs_B)
-            real_validity_B.backward(valid)
-            fake_validity_B = D_B(fake_B)
-            fake_validity_B.backward(fake)
-
-            # Compute gradient penalty for improved wasserstein training
-            gp_B = compute_gradient_penalty(D_B, imgs_B.data, fake_B.data)
-            gp_B.backward()
-
-            # Total adversarial loss
-            D_A_loss = real_validity_A - fake_validity_A
-            D_B_loss = real_validity_B - fake_validity_B
-
-            optimizer_D_A.step()
-            optimizer_D_B.step()
-
-        # ------------------
-        #  Train Generators
-        # ------------------
-
-        optimizer_G.zero_grad()
-
-        # Translate images to opposite domain
+        # Generate a batch of images
         fake_A = G_BA(imgs_B)
         fake_B = G_AB(imgs_A)
 
-        # Reconstruct images
-        recov_A = G_BA(fake_B)
-        recov_B = G_AB(fake_A)
+        #----------
+        # Domain A
+        #----------
 
+        # Compute gradient penalty for improved wasserstein training
+        gp_A = compute_gradient_penalty(D_A, imgs_A.data, fake_A.data)
         # Adversarial loss
-        validity_A = (lambda_adv / 2) * D_A(fake_A)
-        validity_A.backward(valid)
-        validity_B = (lambda_adv / 2) * D_B(fake_B)
-        validity_B.backward(valid)
+        D_A_loss = -torch.mean(D_A(imgs_A)) + torch.mean(D_A(fake_A)) + lambda_gp * gp_A
 
-        # Cycle-consistency loss
-        cycle_A = (lambda_cycle / 2) * cycle_loss(recov_A, imgs_A)
-        cycle_A.backward()
-        cycle_B = (lambda_cycle / 2) * cycle_loss(recov_B, imgs_B)
-        cycle_B.backward()
+        #----------
+        # Domain B
+        #----------
 
-        optimizer_G.step()
+        # Compute gradient penalty for improved wasserstein training
+        gp_B = compute_gradient_penalty(D_B, imgs_B.data, fake_B.data)
+        # Adversarial loss
+        D_B_loss = -torch.mean(D_B(imgs_B)) + torch.mean(D_B(fake_B)) + lambda_gp * gp_B
 
-        # Total losses
-        G_adv = validity_A + validity_B
-        G_cycle = cycle_A + cycle_B
+        D_A_loss.backward()
+        D_B_loss.backward()
+        optimizer_D_A.step()
+        optimizer_D_B.step()
 
-        #--------------
-        # Log Progress
-        #--------------
+        if i % opt.n_critic == 0:
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D_A loss: %f] [D_B loss: %f] [G loss: %f, cycle: %f]" % (epoch, opt.n_epochs,
-                                                        i * opt.n_critic, len(dataloader),
-                                                        D_A_loss.data.cpu().numpy()[0].mean(),
-                                                        D_B_loss.data.cpu().numpy()[0].mean(),
-                                                        G_adv.data.cpu().numpy()[0].mean(), G_cycle.data[0]))
+            # ------------------
+            #  Train Generators
+            # ------------------
+
+            optimizer_G.zero_grad()
+
+            # Translate images to opposite domain
+            fake_A = G_BA(imgs_B)
+            fake_B = G_AB(imgs_A)
+
+            # Reconstruct images
+            recov_A = G_BA(fake_B)
+            recov_B = G_AB(fake_A)
+
+            # Adversarial loss
+            G_adv = (-torch.mean(D_A(fake_A)) - torch.mean(D_B(fake_B)))
+            # Cycle loss
+            G_cycle = cycle_loss(recov_B, imgs_B) + cycle_loss(recov_A, imgs_A)
+            # Total loss
+            G_loss = lambda_adv * G_adv + lambda_cycle * G_cycle
+
+            G_loss.backward()
+            optimizer_G.step()
+
+            #--------------
+            # Log Progress
+            #--------------
+
+            print ("[Epoch %d/%d] [Batch %d/%d] [D_A loss: %f] [D_B loss: %f] [G loss: %f, cycle: %f]" % (epoch, opt.n_epochs,
+                                                            i, len(dataloader),
+                                                            D_A_loss.item(), D_B_loss.item(),
+                                                            G_adv.data.item(), G_cycle.item()))
 
 
-        # Create image sample
-        ABA = torch.cat((imgs_A.data, fake_B.data, recov_A.data), -2)
-        BAB = torch.cat((imgs_B.data, fake_A.data, recov_B.data), -2)
-        sample = torch.cat((ABA, BAB), -2)
-        image_samples.append(sample)
-        if len(image_samples) > 5:
-            image_samples.pop(0)
+            # Create image sample
+            ABA = torch.cat((imgs_A.data, fake_B.data, recov_A.data), -2)
+            BAB = torch.cat((imgs_B.data, fake_A.data, recov_B.data), -2)
+            sample = torch.cat((ABA, BAB), -2)
+            image_samples.append(sample)
+            if len(image_samples) > 5:
+                image_samples.pop(0)
 
-        # Check sample interval => save sample if there
-        batches_done = len(dataloader) * epoch + i * opt.n_critic
-        if batches_done % opt.sample_interval == 0:
-            save_image(torch.cat(image_samples, -1), 'images/%d.png' % batches_done, nrow=2, normalize=True)
+            # Check sample interval => save sample if there
+            if batches_done % opt.sample_interval == 0:
+                save_image(torch.cat(image_samples, -1), 'images/%d.png' % batches_done, nrow=2, normalize=True)
+
+            batches_done += opt.n_critic

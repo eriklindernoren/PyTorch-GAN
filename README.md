@@ -514,7 +514,7 @@ Recent studies have shown remarkable success in image-to-image translation for t
 ```
 $ cd implementations/stargan/
 <follow steps at the top of stargan.py>
-$ python3 softmax_gan.py
+$ python3 stargan.py
 ```
 
 ### Super-Resolution GAN

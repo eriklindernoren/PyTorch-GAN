@@ -122,22 +122,15 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
     """Calculates the gradient penalty loss for WGAN GP"""
     # Random weight term for interpolation between real and fake samples
     alpha = Tensor(np.random.random((real_samples.size(0), 1, 1, 1)))
-
     # Get random interpolation between real and fake samples
-    interpolates = alpha * real_samples + ((1 - alpha) * fake_samples)
-
-    interpolates = Variable(interpolates, requires_grad=True)
-
+    interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
     d_interpolates = D(interpolates)
-
     fake = Variable(Tensor(real_samples.shape[0], 1).fill_(1.0), requires_grad=False)
-
     # Get gradient w.r.t. interpolates
     gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
                               grad_outputs=fake, create_graph=True, retain_graph=True,
                               only_inputs=True)[0]
-
-    gradient_penalty = lambda_gp * ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
 # ----------
@@ -146,72 +139,59 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
 
 batches_done = 0
 for epoch in range(opt.n_epochs):
+    for i, (imgs, _) in enumerate(dataloader):
 
-    # Batch iterator
-    data_iter = iter(dataloader)
+        # Configure input
+        real_imgs = Variable(imgs.type(Tensor))
 
-    for i in range(len(data_iter) // opt.n_critic):
-        # Train discriminator for n_critic times
-        for _ in range(opt.n_critic):
-            (imgs, _) = data_iter.next()
+        # ---------------------
+        #  Train Discriminator
+        # ---------------------
 
-            # Adversarial ground truths
-            valid = Variable(Tensor(imgs.shape[0], 1).fill_(-1.0), requires_grad=False)
-            fake = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
-
-            # Configure input
-            real_imgs = Variable(imgs.type(Tensor))
-
-            # ---------------------
-            #  Train Discriminator
-            # ---------------------
-
-            optimizer_D.zero_grad()
-
-            # Sample noise as generator input
-            z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
-
-            # Generate a batch of images
-            fake_imgs = generator(z)
-
-            # Train on real images
-            real_validity = discriminator(real_imgs)
-            real_validity.backward(valid)
-            # Train on fake images
-            fake_validity = discriminator(fake_imgs)
-            fake_validity.backward(fake)
-
-            # Gradient penalty
-            gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data, fake_imgs.data)
-            gradient_penalty.backward()
-
-            d_loss = real_validity - fake_validity
-
-            optimizer_D.step()
-
-        # -----------------
-        #  Train Generator
-        # -----------------
-
-        optimizer_G.zero_grad()
+        optimizer_D.zero_grad()
 
         # Sample noise as generator input
         z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
 
         # Generate a batch of images
-        gen_imgs = generator(z)
+        fake_imgs = generator(z)
 
-        # Loss measures generator's ability to fool the discriminator
-        # Train on fake images
-        gen_validity = discriminator(gen_imgs)
-        gen_validity.backward(valid)
+        # Real images
+        real_validity = discriminator(real_imgs)
+        # Fake images
+        fake_validity = discriminator(fake_imgs)
+        # Gradient penalty
+        gradient_penalty = compute_gradient_penalty(discriminator, real_imgs.data, fake_imgs.data)
+        # Adversarial loss
+        d_loss = -torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp * gradient_penalty
 
-        optimizer_G.step()
+        d_loss.backward()
+        optimizer_D.step()
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs,
-                                                        batches_done % len(dataloader), len(dataloader),
-                                                        d_loss.item(), gen_validity.item()))
+        optimizer_G.zero_grad()
 
-        if batches_done % opt.sample_interval == 0:
-            save_image(gen_imgs.data[:25], 'images/%d.png' % batches_done, nrow=5, normalize=True)
-        batches_done += 1
+        # Train the generator every n_critic steps
+        if i % opt.n_critic == 0:
+
+            # -----------------
+            #  Train Generator
+            # -----------------
+
+            # Generate a batch of images
+            fake_imgs = generator(z)
+            # Loss measures generator's ability to fool the discriminator
+            # Train on fake images
+            fake_validity = discriminator(fake_imgs)
+            g_loss = -torch.mean(fake_validity)
+
+            g_loss.backward()
+            optimizer_G.step()
+
+            print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs,
+                                                            i, len(dataloader),
+                                                            d_loss.item(), g_loss.item()))
+
+            if batches_done % opt.sample_interval == 0:
+                save_image(fake_imgs.data[:25], 'images/%d.png' % batches_done, nrow=5, normalize=True)
+
+            batches_done += opt.n_critic
