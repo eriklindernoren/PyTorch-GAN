@@ -132,7 +132,6 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
     gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
                               grad_outputs=fake, create_graph=True, retain_graph=True,
                               only_inputs=True)[0]
-
     gradients = gradients.view(gradients.size(0), -1)
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
@@ -251,10 +250,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
             sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D adv: %f, aux: %f] [G loss: %f, adv: %f, aux: %f, cycle: %f] ETA: %s" %
                                                             (epoch, opt.n_epochs,
                                                             i, len(dataloader),
-                                                            loss_D_adv.item(),
-                                                            loss_D_cls.item(), loss_G.item(),
-                                                            loss_G_adv.item(), loss_G_cls.item(),
-                                                            loss_G_rec.item(), time_left))
+                                                            loss_D_adv.item(), loss_D_cls.item(),
+                                                            loss_G.item(), loss_G_adv.item(),
+                                                            loss_G_cls.item(), loss_G_rec.item(),
+                                                            time_left))
 
             # If at sample interval sample and save image
             if batches_done % opt.sample_interval == 0:
