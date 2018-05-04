@@ -3,6 +3,9 @@ import os
 import numpy as np
 import math
 import itertools
+import sys
+import datetime
+import time
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -13,7 +16,6 @@ from torch.autograd import Variable
 
 from models import *
 from datasets import *
-from utils import *
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -26,21 +28,26 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
 parser.add_argument('--dataset_name', type=str, default="edges2shoes", help='name of the dataset')
-parser.add_argument('--batch_size', type=int, default=1, help='size of the batches')
+parser.add_argument('--batch_size', type=int, default=64, help='size of the batches')
 parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
-parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
-parser.add_argument('--img_height', type=int, default=128, help='size of image height')
-parser.add_argument('--img_width', type=int, default=128, help='size of image width')
+parser.add_argument('--img_height', type=int, default=64, help='size of image height')
+parser.add_argument('--img_width', type=int, default=64, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=100, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
-parser.add_argument('--generator_type', type=str, default='resnet', help="'resnet' or 'unet'")
 opt = parser.parse_args()
 print(opt)
+
+def weights_init_normal(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm2d') != -1:
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
 
 # Losses
 adversarial_loss = torch.nn.MSELoss()
@@ -50,12 +57,11 @@ pixelwise_loss = torch.nn.L1Loss()
 cuda = True if torch.cuda.is_available() else False
 
 # Calculate output of image discriminator (PatchGAN)
-patch_h, patch_w = int(opt.img_height / 2**4), int(opt.img_width / 2**4)
-patch = (opt.batch_size, 1, patch_h, patch_w)
+patch = (1, opt.img_height//2**3, opt.img_width//2**3)
 
 # Initialize generator and discriminator
-G_AB = GeneratorResNet() if opt.generator_type == 'resnet' else GeneratorUNet()
-G_BA = GeneratorResNet() if opt.generator_type == 'resnet' else GeneratorUNet()
+G_AB = GeneratorUNet()
+G_BA = GeneratorUNet()
 D_A = Discriminator()
 D_B = Discriminator()
 
@@ -87,45 +93,44 @@ optimizer_G = torch.optim.Adam(itertools.chain(G_AB.parameters(), G_BA.parameter
 optimizer_D_A = torch.optim.Adam(D_A.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D_B = torch.optim.Adam(D_B.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
-# Learning rate update schedulers
-lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D_A = torch.optim.lr_scheduler.LambdaLR(optimizer_D_A, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(optimizer_D_B, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-
-# Inputs & targets memory allocation
+# Input tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
-input_A = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
-input_B = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
-# Adversarial ground truths
-valid = Variable(Tensor(np.ones(patch)), requires_grad=False)
-fake = Variable(Tensor(np.zeros(patch)), requires_grad=False)
-
-# Buffers of previously generated samples
-fake_A_buffer = ReplayBuffer()
-fake_B_buffer = ReplayBuffer()
 
 # Dataset loader
-transforms_ = [ transforms.Resize((opt.img_height, opt.img_width*2), Image.BICUBIC),
+transforms_ = [ transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
-dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
-                        batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, mode='train'),
+                            batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+val_dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, mode='val'),
+                            batch_size=16, shuffle=True, num_workers=opt.n_cpu)
 
-
-
-# Progress logger
-logger = Logger(opt.n_epochs, len(dataloader), opt.sample_interval)
+def sample_images(batches_done):
+    """Saves a generated sample from the validation set"""
+    imgs = next(iter(val_dataloader))
+    real_A = Variable(imgs['A'].type(Tensor))
+    fake_B = G_AB(real_A)
+    real_B = Variable(imgs['B'].type(Tensor))
+    fake_A = G_BA(real_B)
+    img_sample = torch.cat((real_A.data, fake_B.data,
+                            real_B.data, fake_A.data), 0)
+    save_image(img_sample, 'images/%s.png' % batches_done, nrow=8, normalize=True)
 
 # ----------
 #  Training
 # ----------
 
+start_time = time.time()
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
 
-        # Set model input
-        real_A = Variable(input_A.copy_(batch['A']))
-        real_B = Variable(input_B.copy_(batch['B']))
+        # Model inputs
+        real_A = Variable(batch['A'].type(Tensor))
+        real_B = Variable(batch['B'].type(Tensor))
+
+        # Adversarial ground truths
+        valid = Variable(Tensor(np.ones((real_A.size(0), *patch))), requires_grad=False)
+        fake = Variable(Tensor(np.zeros((real_A.size(0), *patch))), requires_grad=False)
 
         # ------------------
         #  Train Generators
@@ -146,12 +151,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
                           pixelwise_loss(fake_B, real_B)) / 2
 
         # Cycle loss
-        recov_A = G_BA(fake_B)
-        loss_cycle_A = cycle_loss(recov_A, real_A)
-
-        recov_B = G_AB(fake_A)
-        loss_cycle_B = cycle_loss(recov_B, real_B)
-
+        loss_cycle_A = cycle_loss(G_BA(fake_B), real_A)
+        loss_cycle_B = cycle_loss(G_AB(fake_A), real_B)
         loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
 
         # Total loss
@@ -168,11 +169,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Real loss
         loss_real = adversarial_loss(D_A(real_A), valid)
-
         # Fake loss (on batch of previously generated samples)
-        fake_A_ = fake_A_buffer.push_and_pop(fake_A)
-        loss_fake = adversarial_loss(D_A(fake_A_.detach()), fake)
-
+        loss_fake = adversarial_loss(D_A(fake_A.detach()), fake)
         # Total loss
         loss_D_A = (loss_real + loss_fake) / 2
 
@@ -184,34 +182,40 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # -----------------------
 
         optimizer_D_B.zero_grad()
-
         # Real loss
         loss_real = adversarial_loss(D_B(real_B), valid)
-
         # Fake loss (on batch of previously generated samples)
-        fake_B_ = fake_B_buffer.push_and_pop(fake_B)
-        loss_fake = adversarial_loss(D_B(fake_B_.detach()), fake)
-
+        loss_fake = adversarial_loss(D_B(fake_B.detach()), fake)
         # Total loss
         loss_D_B = (loss_real + loss_fake) / 2
 
         loss_D_B.backward()
         optimizer_D_B.step()
 
+        loss_D = 0.5 * (loss_D_A + loss_D_B)
+
+
         # --------------
         #  Log Progress
         # --------------
 
-        logger.log({'loss_G': loss_G, 'loss_G_mse': loss_pixelwise, 'loss_G_GAN': loss_GAN,
-                    'loss_G_cycle': loss_cycle, 'loss_D': (loss_D_A + loss_D_B)},
-                    images={'real_A': real_A, 'real_B': real_B, 'fake_A': fake_A,
-                            'fake_B': fake_B, 'recov_A': recov_A, 'recov_B': recov_B},
-                    epoch=epoch, batch=i)
+        # Determine approximate time left
+        batches_done = epoch * len(dataloader) + i
+        batches_left = opt.n_epochs * len(dataloader) - batches_done
+        time_left = datetime.timedelta(seconds=batches_left * (time.time() - start_time)/ (batches_done + 1))
 
-    # Update learning rates
-    lr_scheduler_G.step()
-    lr_scheduler_D_A.step()
-    lr_scheduler_D_B.step()
+        # Print log
+        sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, pixel: %f, cycle: %f] ETA: %s" %
+                                                        (epoch, opt.n_epochs,
+                                                        i, len(dataloader),
+                                                        loss_D.item(), loss_G.item(),
+                                                        loss_GAN.item(), loss_pixelwise.item(),
+                                                        loss_cycle.item(), time_left))
+
+        # If at sample interval save image
+        if batches_done % opt.sample_interval == 0:
+            sample_images(batches_done)
+
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints

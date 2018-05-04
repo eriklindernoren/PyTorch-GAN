@@ -3,6 +3,8 @@ import os
 import numpy as np
 import math
 import itertools
+import datetime
+import time
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -13,7 +15,6 @@ from torch.autograd import Variable
 
 from models import *
 from datasets import *
-from utils import *
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,7 +31,6 @@ parser.add_argument('--batch_size', type=int, default=1, help='size of the batch
 parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
-parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
 parser.add_argument('--img_height', type=int, default=128, help='size of image height')
 parser.add_argument('--img_width', type=int, default=128, help='size of image width')
@@ -51,11 +51,9 @@ kl_loss = torch.nn.KLDivLoss()
 
 cuda = True if torch.cuda.is_available() else False
 
-# Calculate output of image D_VAE (PatchGAN)
-patch_h, patch_w = int(opt.img_height / 2**3), int(opt.img_width / 2**3)
-# Discriminators output two patch shapes
-patch1 = (opt.batch_size, 1, patch_h, patch_w)
-patch2 = (opt.batch_size, 1, patch_h // 2, patch_w // 2)
+# Calculate outputs of multilevel PatchGAN
+patch1 = (opt.batch_size, 1, opt.img_height // 2**3, opt.img_width // 2**3)
+patch2 = (opt.batch_size, 1, opt.img_height // 2**4, opt.img_width // 2**4)
 
 # Initialize generator, encoder and discriminators
 generator = Generator(opt.latent_dim, img_shape)
@@ -96,16 +94,8 @@ optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1,
 optimizer_D_VAE = torch.optim.Adam(D_VAE.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D_LR = torch.optim.Adam(D_LR.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
-# Learning rate update schedulers
-lr_scheduler_E = torch.optim.lr_scheduler.LambdaLR(optimizer_E, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer_G, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D_VAE = torch.optim.lr_scheduler.LambdaLR(optimizer_D_VAE, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-lr_scheduler_D_LR = torch.optim.lr_scheduler.LambdaLR(optimizer_D_LR, lr_lambda=LambdaLR(opt.n_epochs, opt.epoch, opt.decay_epoch).step)
-
-# Inputs & targets memory allocation
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
-input_A = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
-input_B = Tensor(opt.batch_size, opt.channels, opt.img_height, opt.img_width)
+
 # Adversarial ground truths
 valid1 = Variable(Tensor(np.ones(patch1)), requires_grad=False)
 valid2 = Variable(Tensor(np.ones(patch2)), requires_grad=False)
@@ -117,11 +107,19 @@ transforms_ = [ transforms.Resize((opt.img_height, opt.img_width*2), Image.BICUB
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
-                        batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+                            batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+val_dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, mode='val'),
+                            batch_size=5, shuffle=True, num_workers=1)
 
-
-# Progress logger
-logger = Logger(opt.n_epochs, len(dataloader), opt.sample_interval, n_samples=opt.latent_dim)
+def sample_images(batches_done):
+    """Saves a generated sample from the validation set"""
+    imgs = next(iter(val_dataloader))
+    real_A = Variable(imgs['A'].type(Tensor))
+    sampled_z = Variable(Tensor(np.random.normal(0, 1, (5, opt.latent_dim))))
+    fake_B = generator(real_A, sampled_z)
+    real_B = Variable(imgs['B'].type(Tensor))
+    img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), 0)
+    save_image(img_sample, 'images/%s.png' % batches_done, nrow=5, normalize=True)
 
 # ----------
 #  Training
@@ -133,12 +131,13 @@ def reparameterization(mu, logvar):
     z = sampled_z * std + mu
     return z
 
+start_time = time.time()
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
 
         # Set model input
-        real_A = Variable(input_A.copy_(batch['A']))
-        real_B = Variable(input_B.copy_(batch['B']))
+        real_A = Variable(batch['A'].type(Tensor))
+        real_B = Variable(batch['B'].type(Tensor))
 
         # -----------------------------
         #  Train Generator and Encoder
@@ -236,15 +235,22 @@ for epoch in range(opt.epoch, opt.n_epochs):
         #  Log Progress
         # --------------
 
-        logger.log({'loss_D_VAE': loss_D_VAE, 'loss_D_LR': loss_D_LR,
-                    'loss_G': loss_GE, 'loss_pixel': loss_pixel, 'loss_latent': loss_latent},
-                    images={'real_B': real_B, 'fake_B': fake_B, 'real_A': real_A},
-                    epoch=epoch, batch=i)
+        # Determine approximate time left
+        batches_done = epoch * len(dataloader) + i
+        batches_left = opt.n_epochs * len(dataloader) - batches_done
+        time_left = datetime.timedelta(seconds=batches_left * (time.time() - start_time)/ (batches_done + 1))
 
-    # Update learning rates
-    lr_scheduler_G.step()
-    lr_scheduler_D_VAE.step()
-    lr_scheduler_D_LR.step()
+        # Print log
+        sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D VAE_loss: %f, LR_loss: %f] [G loss: %f, pixel: %f, latent: %f] ETA: %s" %
+                                                        (epoch, opt.n_epochs,
+                                                        i, len(dataloader),
+                                                        loss_D_VAE.item(), loss_D_LR.item(),
+                                                        loss_GE.item(), loss_pixel.item(),
+                                                        loss_latent.item(), time_left))
+
+        if batches_done % opt.sample_interval == 0:
+            sample_images(batches_done)
+
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints

@@ -11,18 +11,25 @@ class ImageDataset(Dataset):
     def __init__(self, root, transforms_=None, mode='train'):
         self.transform = transforms.Compose(transforms_)
 
-        self.files = sorted(glob.glob(os.path.join(root, '%s' % mode) + '/*.*'))
+        self.files = sorted(glob.glob(os.path.join(root, mode) + '/*.*'))
+        if mode == 'train':
+            self.files.extend(sorted(glob.glob(os.path.join(root, 'test') + '/*.*')))
 
     def __getitem__(self, index):
 
-        img_pair = self.transform(Image.open(self.files[index % len(self.files)]))
-        _, h, w = img_pair.shape
-        half_w = int(w/2)
+        img = Image.open(self.files[index % len(self.files)])
+        w, h = img.size
+        img_A = img.crop((0, 0, w/2, h))
+        img_B = img.crop((w/2, 0, w, h))
 
-        item_A = img_pair[:, :, :half_w]
-        item_B = img_pair[:, :, half_w:]
+        if np.random.random() < 0.5:
+            img_A = Image.fromarray(np.array(img_A)[:, ::-1, :], 'RGB')
+            img_B = Image.fromarray(np.array(img_B)[:, ::-1, :], 'RGB')
 
-        return {'A': item_A, 'B': item_B}
+        img_A = self.transform(img_A)
+        img_B = self.transform(img_B)
+
+        return {'A': img_A, 'B': img_B}
 
     def __len__(self):
         return len(self.files)

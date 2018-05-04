@@ -10,12 +10,10 @@ class ResidualBlock(nn.Module):
     def __init__(self, in_features):
         super(ResidualBlock, self).__init__()
 
-        conv_block = [  nn.ReflectionPad2d(1),
-                        nn.Conv2d(in_features, in_features, 3),
+        conv_block = [  nn.Conv2d(in_features, in_features, 3, stride=1, padding=1, bias=False),
                         nn.InstanceNorm2d(in_features, affine=True, track_running_stats=True),
                         nn.ReLU(inplace=True),
-                        nn.ReflectionPad2d(1),
-                        nn.Conv2d(in_features, in_features, 3),
+                        nn.Conv2d(in_features, in_features, 3, stride=1, padding=1, bias=False),
                         nn.InstanceNorm2d(in_features, affine=True, track_running_stats=True)  ]
 
         self.conv_block = nn.Sequential(*conv_block)
@@ -29,15 +27,14 @@ class GeneratorResNet(nn.Module):
         channels, img_size, _ = img_shape
 
         # Initial convolution block
-        model = [   nn.ReflectionPad2d(3),
-                    nn.Conv2d(channels + c_dim, 64, 7),
+        model = [   nn.Conv2d(channels + c_dim, 64, 7, stride=1, padding=3, bias=False),
                     nn.InstanceNorm2d(64, affine=True, track_running_stats=True),
                     nn.ReLU(inplace=True) ]
 
         # Downsampling
         curr_dim = 64
         for _ in range(2):
-            model += [  nn.Conv2d(curr_dim, curr_dim*2, 4, stride=2, padding=1),
+            model += [  nn.Conv2d(curr_dim, curr_dim*2, 4, stride=2, padding=1, bias=False),
                         nn.InstanceNorm2d(curr_dim*2, affine=True, track_running_stats=True),
                         nn.ReLU(inplace=True) ]
             curr_dim *= 2
@@ -48,14 +45,13 @@ class GeneratorResNet(nn.Module):
 
         # Upsampling
         for _ in range(2):
-            model += [  nn.ConvTranspose2d(curr_dim, curr_dim//2, 4, stride=2, padding=1),
+            model += [  nn.ConvTranspose2d(curr_dim, curr_dim//2, 4, stride=2, padding=1, bias=False),
                         nn.InstanceNorm2d(curr_dim//2, affine=True, track_running_stats=True),
                         nn.ReLU(inplace=True) ]
             curr_dim = curr_dim // 2
 
         # Output layer
-        model += [  nn.ReflectionPad2d(3),
-                    nn.Conv2d(curr_dim, channels, 7),
+        model += [  nn.Conv2d(curr_dim, channels, 7, stride=1, padding=3),
                     nn.Tanh() ]
 
         self.model = nn.Sequential(*model)
@@ -72,28 +68,32 @@ class GeneratorResNet(nn.Module):
 ##############################
 
 class Discriminator(nn.Module):
-    def __init__(self, img_shape=(3, 128, 128), c_dim=5):
+    def __init__(self, img_shape=(3, 128, 128), c_dim=5, n_strided=6):
         super(Discriminator, self).__init__()
         channels, img_size, _ = img_shape
 
-        def discriminator_block(in_filters, out_filters, normalize=True):
+        def discriminator_block(in_filters, out_filters):
             """Returns downsampling layers of each discriminator block"""
-            layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
-            layers.append(nn.LeakyReLU(0.01, inplace=True))
+            layers = [  nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1),
+                        nn.LeakyReLU(0.01)]
             return layers
 
-        self.model = nn.Sequential(
-            *discriminator_block(channels, 64),
-            *discriminator_block(64, 128),
-            *discriminator_block(128, 256),
-            *discriminator_block(256, 512),
-        )
+        layers = discriminator_block(channels, 64)
+        curr_dim = 64
+        for _ in range(n_strided - 1):
+            layers.extend(discriminator_block(curr_dim, curr_dim*2))
+            curr_dim *= 2
 
-        self.out1 = nn.Conv2d(512, 1, 3, padding=1)
-        self.out2 = nn.Conv2d(512, c_dim, 3, padding=1)
+        self.model = nn.Sequential(*layers)
+
+        # Output 1: PatchGAN
+        self.out1 = nn.Conv2d(curr_dim, 1, 3, padding=1, bias=False)
+        # Output 2: Class prediction
+        kernel_size = img_size // 2**n_strided
+        self.out2 = nn.Conv2d(curr_dim, c_dim, kernel_size, bias=False)
 
     def forward(self, img):
         feature_repr = self.model(img)
         out_adv = self.out1(feature_repr)
         out_cls = self.out2(feature_repr)
-        return out_adv, out_cls
+        return out_adv, out_cls.view(out_cls.size(0), -1)

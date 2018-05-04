@@ -59,30 +59,26 @@ parser.add_argument('--n_critic', type=int, default=5, help='number of training 
 opt = parser.parse_args()
 print(opt)
 
-c_dim = len(opt.selected_attrs)
-img_shape = (opt.channels, opt.img_height, opt.img_width)
-
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
+
+c_dim = len(opt.selected_attrs)
+img_shape = (opt.channels, opt.img_height, opt.img_width)
 
 cuda = True if torch.cuda.is_available() else False
 
 # Loss functions
-criterion_cls = torch.nn.MSELoss()
 criterion_cycle = torch.nn.L1Loss()
+
+def criterion_cls(logit, target):
+    return F.binary_cross_entropy_with_logits(logit, target, size_average=False) / logit.size(0)
 
 # Loss weights
 lambda_cls = 1
 lambda_rec = 10
 lambda_gp = 10
-
-# Calculate output of image discriminator (PatchGAN)
-patch = (1, opt.img_height//2**4, opt.img_width//2**4)
 
 # Initialize generator and discriminator
 generator = GeneratorResNet(img_shape=img_shape, res_blocks=opt.residual_blocks, c_dim=c_dim)
@@ -91,7 +87,6 @@ discriminator = Discriminator(img_shape=img_shape, c_dim=c_dim)
 if cuda:
     generator = generator.cuda()
     discriminator = discriminator.cuda()
-    criterion_cls.cuda()
     criterion_cycle.cuda()
 
 if opt.epoch != 0:
@@ -99,21 +94,28 @@ if opt.epoch != 0:
     generator.load_state_dict(torch.load('saved_models/generator_%d.pth'))
     discriminator.load_state_dict(torch.load('saved_models/discriminator_%d.pth'))
 else:
-    # Initialize weights
     generator.apply(weights_init_normal)
     discriminator.apply(weights_init_normal)
-
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 # Configure dataloaders
-transforms_ = [ transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+train_transforms = [transforms.Resize(int(1.12*opt.img_height), Image.BICUBIC),
+                    transforms.RandomCrop(opt.img_height),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 
-dataloader = DataLoader(CelebADataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, attributes=opt.selected_attrs),
+dataloader = DataLoader(CelebADataset("../../data/%s" % opt.dataset_name, transforms_=train_transforms, mode='train', attributes=opt.selected_attrs),
                         batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
+
+val_transforms = [  transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
+
+val_dataloader = DataLoader(CelebADataset("../../data/%s" % opt.dataset_name, transforms_=val_transforms, mode='val', attributes=opt.selected_attrs),
+                        batch_size=10, shuffle=True, num_workers=1)
 
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
@@ -130,23 +132,27 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
     gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
                               grad_outputs=fake, create_graph=True, retain_graph=True,
                               only_inputs=True)[0]
+
+    gradients = gradients.view(gradients.size(0), -1)
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
-
 label_changes = [
     ((0, 1), (1, 0), (2, 0)),   # Set to black hair
-    ((0, 0), (0, 1), (2, 0)),   # Set to blonde hair
+    ((0, 0), (1, 1), (2, 0)),   # Set to blonde hair
     ((0, 0), (1, 0), (2, 1)),   # Set to brown hair
     ((3, -1),),                 # Flip gender
     ((4, 0),)                   # Set to old
 ]
 
-def sample_images(batches_done, sample_imgs, sample_labels):
+def sample_images(batches_done):
     """Saves a generated sample of domain translations"""
+    val_imgs, val_labels = next(iter(val_dataloader))
+    val_imgs = Variable(val_imgs.type(Tensor))
+    val_labels = Variable(val_labels.type(Tensor))
     img_samples = None
     for i in range(10):
-        img, label = sample_imgs[i], sample_labels[i]
+        img, label = val_imgs[i], val_labels[i]
         # Repeat for number of label changes
         imgs = img.repeat(c_dim, 1, 1, 1)
         labels = label.repeat(c_dim, 1)
@@ -154,6 +160,7 @@ def sample_images(batches_done, sample_imgs, sample_labels):
         for sample_i, changes in enumerate(label_changes):
             for col, val in changes:
                 labels[sample_i, col] = 1 - labels[sample_i, col] if val == -1 else val
+
         # Generate translations
         gen_imgs = generator(imgs, labels)
         # Concatenate images by width
@@ -164,10 +171,6 @@ def sample_images(batches_done, sample_imgs, sample_labels):
 
     save_image(img_samples.view(1, *img_samples.shape), 'images/%s.png' % batches_done, normalize=True)
 
-def get_target(labels):
-    """Constructs patch formatted target labels"""
-    patch_labels = labels.view(*labels.shape, 1, 1).repeat(1, 1, *patch[1:])
-    return patch_labels
 
 # ----------
 #  Training
@@ -183,9 +186,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         labels = Variable(labels.type(Tensor))
 
         # Sample labels as generator inputs
-        c = Variable(Tensor(np.random.randint(0, 2, (imgs.size(0), c_dim))))
+        sampled_c = Variable(Tensor(np.random.randint(0, 2, (imgs.size(0), c_dim))))
         # Generate fake batch of images
-        fake_imgs = generator(imgs, c)
+        fake_imgs = generator(imgs, sampled_c)
 
         # ---------------------
         #  Train Discriminator
@@ -202,7 +205,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Adversarial loss
         loss_D_adv = - torch.mean(real_validity) + torch.mean(fake_validity) + lambda_gp * gradient_penalty
         # Classification loss
-        loss_D_cls = criterion_cls(pred_cls, get_target(labels))
+        loss_D_cls = criterion_cls(pred_cls, labels)
         # Total loss
         loss_D = loss_D_adv + lambda_cls * loss_D_cls
 
@@ -219,14 +222,14 @@ for epoch in range(opt.epoch, opt.n_epochs):
             # -----------------
 
             # Translate and reconstruct image
-            gen_imgs = generator(imgs, c)
+            gen_imgs = generator(imgs, sampled_c)
             recov_imgs = generator(gen_imgs, labels)
             # Discriminator evaluates translated image
             fake_validity, pred_cls = discriminator(gen_imgs)
             # Adversarial loss
             loss_G_adv = - torch.mean(fake_validity)
             # Classification loss
-            loss_G_cls = criterion_cls(pred_cls, get_target(c))
+            loss_G_cls = criterion_cls(pred_cls, sampled_c)
             # Reconstruction loss
             loss_G_rec = criterion_cycle(recov_imgs, imgs)
             # Total loss
@@ -255,7 +258,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
             # If at sample interval sample and save image
             if batches_done % opt.sample_interval == 0:
-                sample_images(batches_done, imgs[:10], labels[:10])
+                sample_images(batches_done)
 
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:

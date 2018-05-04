@@ -9,11 +9,12 @@ from PIL import Image
 import torchvision.transforms as transforms
 
 class CelebADataset(Dataset):
-    def __init__(self, root, transforms_=None, attributes=None):
+    def __init__(self, root, transforms_=None, mode='train', attributes=None):
         self.transform = transforms.Compose(transforms_)
 
         self.selected_attrs = attributes
         self.files = sorted(glob.glob('%s/*.jpg' % root))
+        self.files = self.files[:-2000] if mode == 'train' else self.files[-2000:]
         self.label_path = glob.glob('%s/*.txt' % root)[0]
         self.annotations = self.get_annotations()
 
@@ -27,7 +28,7 @@ class CelebADataset(Dataset):
             labels = []
             for attr in self.selected_attrs:
                 idx = self.label_names.index(attr)
-                labels.append(1*(values[idx] == '1'))
+                labels.append(1 * (values[idx] == '1'))
             annotations[filename] = labels
         return annotations
 

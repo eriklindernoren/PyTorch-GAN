@@ -7,13 +7,13 @@ import torch
 ##############################
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, bn=True, dropout=0.0):
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
         super(UNetDown, self).__init__()
         model = [   nn.Conv2d(in_size, out_size, 3, stride=2, padding=1),
                     nn.LeakyReLU(0.2, inplace=True) ]
 
-        if bn:
-            model += [nn.InstanceNorm2d(out_size)]
+        if normalize:
+            model += [nn.BatchNorm2d(out_size, 0.8)]
 
         if dropout:
             model += [nn.Dropout(dropout)]
@@ -29,8 +29,7 @@ class UNetUp(nn.Module):
         model = [   nn.Upsample(scale_factor=2),
                     nn.Conv2d(in_size, out_size, 3, stride=1, padding=1),
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.InstanceNorm2d(out_size) ]
-
+                    nn.BatchNorm2d(out_size, 0.8) ]
         if dropout:
             model += [nn.Dropout(dropout)]
 
@@ -43,38 +42,47 @@ class UNetUp(nn.Module):
         return out
 
 class Generator(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3):
+    def __init__(self, channels=3):
         super(Generator, self).__init__()
 
-        self.down1 = UNetDown(in_channels, 64, bn=False)
+        self.down1 = UNetDown(channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
-        self.down3 = UNetDown(128, 256, dropout=0.5)
+        self.down3 = UNetDown(128+channels, 256, dropout=0.5)
         self.down4 = UNetDown(256, 512, dropout=0.5)
+        self.down5 = UNetDown(512, 512, dropout=0.5)
+        self.down6 = UNetDown(512, 512, dropout=0.5)
 
-        self.up1 = UNetUp(512, 256, dropout=0.5)
-        self.up2 = UNetUp(512, 128, dropout=0.5)
-        self.up3 = UNetUp(256, 64, dropout=0.5)
+        self.up1 = UNetUp(512, 512, dropout=0.5)
+        self.up2 = UNetUp(1024, 512, dropout=0.5)
+        self.up3 = UNetUp(1024, 256, dropout=0.5)
+        self.up4 = UNetUp(512, 128)
+        self.up5 = UNetUp(256+channels, 64)
 
 
         final = [   nn.Upsample(scale_factor=2),
-                    nn.Conv2d(128, out_channels, 3, 1, 1),
+                    nn.Conv2d(128, channels, 3, 1, 1),
                     nn.Tanh() ]
         self.final = nn.Sequential(*final)
 
-    def forward(self, x):
+    def forward(self, x, x_lr):
         # U-Net generator with skip connections from encoder to decoder
         d1 = self.down1(x)
         d2 = self.down2(d1)
+        d2 = torch.cat((d2, x_lr), 1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
-        u1 = self.up1(d4, d3)
-        u2 = self.up2(u1, d2)
-        u3 = self.up3(u2, d1)
+        d5 = self.down5(d4)
+        d6 = self.down6(d5)
+        u1 = self.up1(d6, d5)
+        u2 = self.up2(u1, d4)
+        u3 = self.up3(u2, d3)
+        u4 = self.up4(u3, d2)
+        u5 = self.up5(u4, d1)
 
-        return self.final(u3)
+        return self.final(u5)
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels=3):
+    def __init__(self, channels=3):
         super(Discriminator, self).__init__()
 
         def discriminator_block(in_filters, out_filters, stride, normalize):
@@ -86,7 +94,7 @@ class Discriminator(nn.Module):
             return layers
 
         layers = []
-        in_filters = in_channels
+        in_filters = channels
         for out_filters, stride, normalize in [ (64, 2, False),
                                                 (128, 2, True),
                                                 (256, 2, True),
