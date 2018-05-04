@@ -518,7 +518,7 @@ $ python3 stargan.py
 ```
 
 <p align="center">
-    <img src="assets/stargan.png" width="360"\>
+    <img src="assets/stargan.png" width="640"\>
 </p>
 <p align="center">
     Original | Black Hair | Blonde Hair | Brown Hair | Gender Flip | Aged
