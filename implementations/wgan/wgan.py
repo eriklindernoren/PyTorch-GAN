@@ -127,10 +127,6 @@ for epoch in range(opt.n_epochs):
         for _ in range(opt.n_critic):
             (imgs, _) = data_iter.next()
 
-            # Adversarial ground truths
-            valid = Variable(Tensor(imgs.shape[0], 1).fill_(-1.0), requires_grad=False)
-            fake = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
-
             # Configure input
             real_imgs = Variable(imgs.type(Tensor))
 
@@ -145,16 +141,10 @@ for epoch in range(opt.n_epochs):
 
             # Generate a batch of images
             fake_imgs = generator(z)
+            # Adversarial loss
+            loss_D = -torch.mean(discriminator(real_imgs)) + torch.mean(discriminator(fake_imgs))
 
-            # Train on real images
-            real_validity = discriminator(real_imgs)
-            real_validity.backward(valid)
-            # Train on fake images
-            fake_validity = discriminator(fake_imgs)
-            fake_validity.backward(fake)
-
-            d_loss = real_validity - fake_validity
-
+            loss_D.backward()
             optimizer_D.step()
 
             # Clip weights of discriminator
@@ -167,22 +157,17 @@ for epoch in range(opt.n_epochs):
 
         optimizer_G.zero_grad()
 
-        # Sample noise as generator input
-        z = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], opt.latent_dim))))
-
         # Generate a batch of images
         gen_imgs = generator(z)
+        # Adversarial loss
+        loss_G = -torch.mean(discriminator(gen_imgs))
 
-        # Loss measures generator's ability to fool the discriminator
-        # Train on fake images
-        gen_validity = discriminator(gen_imgs)
-        gen_validity.backward(valid)
-
+        loss_G.backward()
         optimizer_G.step()
 
         print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" % (epoch, opt.n_epochs,
                                                         batches_done % len(dataloader), len(dataloader),
-                                                        d_loss.item(), gen_validity.item()))
+                                                        loss_D.item(), loss_G.item()))
 
         if batches_done % opt.sample_interval == 0:
             save_image(gen_imgs.data[:25], 'images/%d.png' % batches_done, nrow=5, normalize=True)
