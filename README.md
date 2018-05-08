@@ -1,14 +1,11 @@
-# PyTorch-GAN
+<p align="center"><img src="assets/logo.png" width="480"\></p>
 
-## About
+## PyTorch-GAN
 Collection of PyTorch implementations of Generative Adversarial Network varieties presented in research papers. Model architectures will not always mirror the ones proposed in the papers, but I have chosen to focus on getting the core ideas covered instead of getting every layer configuration right. Contributions and suggestions of GANs to implement are very welcomed.
 
-See also: [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
+<b>See also:</b> [Keras-GAN](https://github.com/eriklindernoren/Keras-GAN)
 
 ## Table of Contents
-- [Keras-GAN](#keras-gan)
-  * [About](#about)
-  * [Table of Contents](#table-of-contents)
   * [Installation](#installation)
   * [Implementations](#implementations)
     + [Auxiliary Classifier GAN](#auxiliary-classifier-gan)
@@ -519,7 +516,7 @@ $ python3 stargan.py
 ```
 
 <p align="center">
-    <img src="assets/stargan.png" width="360"\>
+    <img src="assets/stargan.png" width="640"\>
 </p>
 <p align="center">
     Original | Black Hair | Blonde Hair | Brown Hair | Gender Flip | Aged

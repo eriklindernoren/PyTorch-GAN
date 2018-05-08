@@ -117,7 +117,7 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
     # Get random interpolation between real and fake samples
     interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
     d_interpolates = D(interpolates)
-    fake = Variable(FloatTensor(real_samples.shape[0], *patch).fill_(1.0), requires_grad=False)
+    fake = Variable(FloatTensor(np.ones(d_interpolates.shape)), requires_grad=False)
     # Get gradient w.r.t. interpolates
     gradients = autograd.grad(outputs=d_interpolates, inputs=interpolates,
                               grad_outputs=fake, create_graph=True, retain_graph=True,
@@ -137,8 +137,6 @@ batches_done = 0
 prev_time = time.time()
 for epoch in range(opt.n_epochs):
     for i, batch in enumerate(dataloader):
-
-        batch_size = batch['A'].size(0)
 
         # Configure input
         imgs_A = Variable(batch['A'].type(FloatTensor))
