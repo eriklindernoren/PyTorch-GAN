@@ -220,8 +220,7 @@ $ python3 cyclegan.py --dataset_name monet2photo
     <img src="assets/cyclegan.png" width="900"\>
 </p>
 <p align="center">
-    First two rows display monet to phot translations. Last two rows display <br>
-    photo to monet translations.
+    Monet to photo translations.
 </p>
 
 ### Deep Convolutional GAN
