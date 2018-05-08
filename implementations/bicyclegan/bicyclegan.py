@@ -5,6 +5,7 @@ import math
 import itertools
 import datetime
 import time
+import sys
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -20,9 +21,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-os.makedirs('images', exist_ok=True)
-os.makedirs('saved_models', exist_ok=True)
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
@@ -32,14 +30,25 @@ parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rat
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--img_height', type=int, default=128, help='size of image height')
-parser.add_argument('--img_width', type=int, default=128, help='size of image width')
+parser.add_argument('--img_height', type=int, default=256, help='size of image height')
+parser.add_argument('--img_width', type=int, default=256, help='size of image width')
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--latent_dim', type=int, default=8, help='dimensionality of latent representation')
 parser.add_argument('--sample_interval', type=int, default=1000, help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
 opt = parser.parse_args()
 print(opt)
+
+os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
+os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
+
+def weights_init_normal(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm2d') != -1:
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
 
 img_shape = (opt.channels, opt.img_height, opt.img_width)
 
@@ -73,10 +82,10 @@ if cuda:
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load('saved_models/generator_%d.pth' % opt.epoch))
-    encoder.load_state_dict(torch.load('saved_models/encoder_%d.pth' % opt.epoch))
-    D_VAE.load_state_dict(torch.load('saved_models/D_VAE_%d.pth' % opt.epoch))
-    D_LR.load_state_dict(torch.load('saved_models/D_LR_%d.pth' % opt.epoch))
+    generator.load_state_dict(torch.load('saved_models/%s/generator_%d.pth' % (opt.dataset_name, opt.epoch)))
+    encoder.load_state_dict(torch.load('saved_models/%s/encoder_%d.pth' % (opt.dataset_name, opt.epoch)))
+    D_VAE.load_state_dict(torch.load('saved_models/%s/D_VAE_%d.pth' % (opt.dataset_name, opt.epoch)))
+    D_LR.load_state_dict(torch.load('saved_models/%s/D_LR_%d.pth' % (opt.dataset_name, opt.epoch)))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)
@@ -103,7 +112,7 @@ fake1 = Variable(Tensor(np.zeros(patch1)), requires_grad=False)
 fake2 = Variable(Tensor(np.zeros(patch2)), requires_grad=False)
 
 # Dataset loader
-transforms_ = [ transforms.Resize((opt.img_height, opt.img_width*2), Image.BICUBIC),
+transforms_ = [ transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
@@ -119,7 +128,7 @@ def sample_images(batches_done):
     fake_B = generator(real_A, sampled_z)
     real_B = Variable(imgs['B'].type(Tensor))
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), 0)
-    save_image(img_sample, 'images/%s.png' % batches_done, nrow=5, normalize=True)
+    save_image(img_sample, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=5, normalize=True)
 
 # ----------
 #  Training
@@ -131,7 +140,7 @@ def reparameterization(mu, logvar):
     z = sampled_z * std + mu
     return z
 
-start_time = time.time()
+prev_time = time.time()
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
 
@@ -238,7 +247,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Determine approximate time left
         batches_done = epoch * len(dataloader) + i
         batches_left = opt.n_epochs * len(dataloader) - batches_done
-        time_left = datetime.timedelta(seconds=batches_left * (time.time() - start_time)/ (batches_done + 1))
+        time_left = datetime.timedelta(seconds=batches_left * (time.time() - prev_time))
+        prev_time = time.time()
 
         # Print log
         sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D VAE_loss: %f, LR_loss: %f] [G loss: %f, pixel: %f, latent: %f] ETA: %s" %
@@ -254,7 +264,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
-        torch.save(generator.state_dict(), 'saved_models/generator_%d.pth' % epoch)
-        torch.save(encoder.state_dict(), 'saved_models/encoder_%d.pth' % epoch)
-        torch.save(D_VAE.state_dict(), 'saved_models/D_VAE_%d.pth' % epoch)
-        torch.save(D_LR.state_dict(), 'saved_models/D_LR_%d.pth' % epoch)
+        torch.save(generator.state_dict(), 'saved_models/%s/generator_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(encoder.state_dict(), 'saved_models/%s/encoder_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(D_VAE.state_dict(), 'saved_models/%s/D_VAE_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(D_LR.state_dict(), 'saved_models/%s/D_LR_%d.pth' % (opt.dataset_name, epoch))

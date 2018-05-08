@@ -4,6 +4,9 @@ import numpy as np
 import math
 import itertools
 import scipy
+import sys
+import time
+import datetime
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -23,9 +26,10 @@ import torch
 os.makedirs('images', exist_ok=True)
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
-parser.add_argument('--batch_size', type=int, default=1, help='size of the batches')
-parser.add_argument('--dataset_name', type=str, default='facades', help='name of the dataset')
+parser.add_argument('--batch_size', type=int, default=16, help='size of the batches')
+parser.add_argument('--dataset_name', type=str, default='edges2shoes', help='name of the dataset')
 parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
@@ -36,6 +40,9 @@ parser.add_argument('--n_critic', type=int, default=5, help='number of training 
 parser.add_argument('--sample_interval', type=int, default=200, help='interval betwen image samples')
 opt = parser.parse_args()
 print(opt)
+
+os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
+os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
 img_shape = (opt.channels, opt.img_size, opt.img_size)
 
@@ -74,11 +81,18 @@ if cuda:
     D_B.cuda()
     cycle_loss.cuda()
 
-# Initialize weights
-G_AB.apply(weights_init_normal)
-G_BA.apply(weights_init_normal)
-D_A.apply(weights_init_normal)
-D_B.apply(weights_init_normal)
+if opt.epoch != 0:
+    # Load pretrained models
+    G_AB.load_state_dict(torch.load('saved_models/%s/G_AB_%d.pth' % (opt.dataset_name, opt.epoch)))
+    G_BA.load_state_dict(torch.load('saved_models/%s/G_BA_%d.pth' % (opt.dataset_name, opt.epoch)))
+    D_A.load_state_dict(torch.load('saved_models/%s/D_A_%d.pth' % (opt.dataset_name, opt.epoch)))
+    D_B.load_state_dict(torch.load('saved_models/%s/D_B_%d.pth' % (opt.dataset_name, opt.epoch)))
+else:
+    # Initialize weights
+    G_AB.apply(weights_init_normal)
+    G_BA.apply(weights_init_normal)
+    D_A.apply(weights_init_normal)
+    D_B.apply(weights_init_normal)
 
 # Configure data loader
 transforms_ = [ transforms.Resize((opt.img_size, opt.img_size*2), Image.BICUBIC),
@@ -120,6 +134,7 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
 image_samples = []
 
 batches_done = 0
+prev_time = time.time()
 for epoch in range(opt.n_epochs):
     for i, batch in enumerate(dataloader):
 
@@ -193,15 +208,25 @@ for epoch in range(opt.n_epochs):
             # Log Progress
             #--------------
 
-            print ("[Epoch %d/%d] [Batch %d/%d] [D_A loss: %f] [D_B loss: %f] [G loss: %f, cycle: %f]" % (epoch, opt.n_epochs,
+            # Determine approximate time left
+            batches_done = epoch * len(dataloader) + i
+            batches_left = opt.n_epochs * len(dataloader) - batches_done
+            time_left = datetime.timedelta(seconds=batches_left * (time.time() - prev_time))
+            prev_time = time.time()
+
+
+            sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D_A loss: %f] [D_B loss: %f] [G loss: %f, cycle: %f] ETA: %s" % (epoch, opt.n_epochs,
                                                             i, len(dataloader),
                                                             D_A_loss.item(), D_B_loss.item(),
-                                                            G_adv.data.item(), G_cycle.item()))
+                                                            G_adv.data.item(), G_cycle.item(),
+                                                            time_left))
+
+
 
 
             # Create image sample
-            ABA = torch.cat((imgs_A.data, fake_B.data, recov_A.data), -2)
-            BAB = torch.cat((imgs_B.data, fake_A.data, recov_B.data), -2)
+            ABA = torch.cat((imgs_A[:1].data, fake_B[:1].data, recov_A[:1].data), -2)
+            BAB = torch.cat((imgs_B[:1].data, fake_A[:1].data, recov_B[:1].data), -2)
             sample = torch.cat((ABA, BAB), -2)
             image_samples.append(sample)
             if len(image_samples) > 5:
@@ -209,6 +234,13 @@ for epoch in range(opt.n_epochs):
 
             # Check sample interval => save sample if there
             if batches_done % opt.sample_interval == 0:
-                save_image(torch.cat(image_samples, -1), 'images/%d.png' % batches_done, nrow=2, normalize=True)
+                save_image(torch.cat(image_samples, -1), 'images/%s/%d.png' % (opt.dataset_name, batches_done), nrow=2, normalize=True)
 
             batches_done += opt.n_critic
+
+    if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
+        # Save model checkpoints
+        torch.save(G_AB.state_dict(), 'saved_models/%s/G_AB_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(G_BA.state_dict(), 'saved_models/%s/G_BA_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(D_A.state_dict(), 'saved_models/%s/D_A_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(D_B.state_dict(), 'saved_models/%s/D_B_%d.pth' % (opt.dataset_name, epoch))

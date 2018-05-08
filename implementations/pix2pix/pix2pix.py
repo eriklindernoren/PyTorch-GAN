@@ -21,9 +21,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-os.makedirs('images', exist_ok=True)
-os.makedirs('saved_models', exist_ok=True)
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
@@ -41,6 +38,9 @@ parser.add_argument('--sample_interval', type=int, default=500, help='interval b
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
 opt = parser.parse_args()
 print(opt)
+
+os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
+os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -74,8 +74,8 @@ if cuda:
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load('saved_models/generator_%d.pth'))
-    discriminator.load_state_dict(torch.load('saved_models/discriminator_%d.pth'))
+    generator.load_state_dict(torch.load('saved_models/%s/generator_%d.pth' % (opt.dataset_name, opt.epoch)))
+    discriminator.load_state_dict(torch.load('saved_models/%s/discriminator_%d.pth' % (opt.dataset_name, opt.epoch)))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)
@@ -106,7 +106,7 @@ def sample_images(batches_done):
     real_B = Variable(imgs['A'].type(Tensor))
     fake_B = generator(real_A)
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
-    save_image(img_sample, 'images/%s.png' % batches_done, nrow=5, normalize=True)
+    save_image(img_sample, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=5, normalize=True)
 
 # ----------
 #  Training
@@ -189,5 +189,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
-        torch.save(generator.state_dict(), 'saved_models/generator_%d.pth' % epoch)
-        torch.save(discriminator.state_dict(), 'saved_models/discriminator_%d.pth' % epoch)
+        torch.save(generator.state_dict(), 'saved_models/%s/generator_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(discriminator.state_dict(), 'saved_models/%s/discriminator_%d.pth' % (opt.dataset_name, epoch))

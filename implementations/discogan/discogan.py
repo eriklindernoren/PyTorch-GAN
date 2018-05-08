@@ -21,9 +21,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-os.makedirs('images', exist_ok=True)
-os.makedirs('saved_models', exist_ok=True)
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
@@ -40,6 +37,10 @@ parser.add_argument('--sample_interval', type=int, default=100, help='interval b
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between model checkpoints')
 opt = parser.parse_args()
 print(opt)
+
+# Create sample and checkpoint directories
+os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
+os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -76,10 +77,10 @@ if cuda:
 
 if opt.epoch != 0:
     # Load pretrained models
-    G_AB.load_state_dict(torch.load('saved_models/G_AB_%d.pth'))
-    G_BA.load_state_dict(torch.load('saved_models/G_BA_%d.pth'))
-    D_A.load_state_dict(torch.load('saved_models/D_A_%d.pth'))
-    D_B.load_state_dict(torch.load('saved_models/D_B_%d.pth'))
+    G_AB.load_state_dict(torch.load('saved_models/%s/G_AB_%d.pth' % (opt.dataset_name, opt.epoch)))
+    G_BA.load_state_dict(torch.load('saved_models/%s/G_BA_%d.pth' % (opt.dataset_name, opt.epoch)))
+    D_A.load_state_dict(torch.load('saved_models/%s/D_A_%d.pth' % (opt.dataset_name, opt.epoch)))
+    D_B.load_state_dict(torch.load('saved_models/%s/D_B_%d.pth' % (opt.dataset_name, opt.epoch)))
 else:
     # Initialize weights
     G_AB.apply(weights_init_normal)
@@ -114,13 +115,13 @@ def sample_images(batches_done):
     fake_A = G_BA(real_B)
     img_sample = torch.cat((real_A.data, fake_B.data,
                             real_B.data, fake_A.data), 0)
-    save_image(img_sample, 'images/%s.png' % batches_done, nrow=8, normalize=True)
+    save_image(img_sample, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=8, normalize=True)
 
 # ----------
 #  Training
 # ----------
 
-start_time = time.time()
+prev_time = time.time()
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
 
@@ -202,7 +203,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Determine approximate time left
         batches_done = epoch * len(dataloader) + i
         batches_left = opt.n_epochs * len(dataloader) - batches_done
-        time_left = datetime.timedelta(seconds=batches_left * (time.time() - start_time)/ (batches_done + 1))
+        time_left = datetime.timedelta(seconds=batches_left * (time.time() - prev_time))
+        prev_time = time.time()
 
         # Print log
         sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, pixel: %f, cycle: %f] ETA: %s" %
@@ -219,7 +221,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
-        torch.save(G_AB.state_dict(), 'saved_models/G_AB_%d.pth' % epoch)
-        torch.save(G_BA.state_dict(), 'saved_models/G_BA_%d.pth' % epoch)
-        torch.save(D_A.state_dict(), 'saved_models/D_A_%d.pth' % epoch)
-        torch.save(D_B.state_dict(), 'saved_models/D_B_%d.pth' % epoch)
+        torch.save(G_AB.state_dict(), 'saved_models/%s/G_AB_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(G_BA.state_dict(), 'saved_models/%s/G_BA_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(D_A.state_dict(), 'saved_models/%s/D_A_%d.pth' % (opt.dataset_name, epoch))
+        torch.save(D_B.state_dict(), 'saved_models/%s/D_B_%d.pth' % (opt.dataset_name, epoch))

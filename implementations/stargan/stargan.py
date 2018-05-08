@@ -91,8 +91,8 @@ if cuda:
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load('saved_models/generator_%d.pth'))
-    discriminator.load_state_dict(torch.load('saved_models/discriminator_%d.pth'))
+    generator.load_state_dict(torch.load('saved_models/generator_%d.pth' % opt.epoch))
+    discriminator.load_state_dict(torch.load('saved_models/discriminator_%d.pth' % opt.epoch))
 else:
     generator.apply(weights_init_normal)
     discriminator.apply(weights_init_normal)
@@ -141,7 +141,7 @@ label_changes = [
     ((0, 0), (1, 1), (2, 0)),   # Set to blonde hair
     ((0, 0), (1, 0), (2, 1)),   # Set to brown hair
     ((3, -1),),                 # Flip gender
-    ((4, 0),)                   # Set to old
+    ((4, -1),)                   # Age flip
 ]
 
 def sample_images(batches_done):
@@ -226,7 +226,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
             # Discriminator evaluates translated image
             fake_validity, pred_cls = discriminator(gen_imgs)
             # Adversarial loss
-            loss_G_adv = - torch.mean(fake_validity)
+            loss_G_adv = -torch.mean(fake_validity)
             # Classification loss
             loss_G_cls = criterion_cls(pred_cls, sampled_c)
             # Reconstruction loss

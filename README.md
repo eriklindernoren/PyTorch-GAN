@@ -214,17 +214,18 @@ Image-to-image translation is a class of vision and graphics problems where the 
 #### Run Example
 ```
 $ cd data/
-$ bash download_cyclegan_dataset.sh apple2orange
+$ bash download_cyclegan_dataset.sh monet2photo
 $ cd ../implementations/cyclegan/
-$ python3 cyclegan.py --dataset_name apple2orange
+$ python3 cyclegan.py --dataset_name monet2photo
 ```
 
 <p align="center">
     <img src="assets/cyclegan.png" width="240"\>
 </p>
 <p align="center">
-    Rows from top to bottom: (1) Original images from both domains (2) Translated images <br>
-    produced by generators (3) Reconstructed images
+    Rows from top to bottom: (1) Original images from domain A (2) Translated images <br>
+    produced by generator (3) Reconstructed images (4) Original images from domain B <br>
+    (5) Translated images produced by generator (6) Reconstructed images
 </p>
 
 ### Deep Convolutional GAN

@@ -57,12 +57,16 @@ class Generator(nn.Module):
         self.down4 = UNetDown(256, 512)
         self.down5 = UNetDown(512, 512)
         self.down6 = UNetDown(512, 512)
+        self.down7 = UNetDown(512, 512)
+        self.down8 = UNetDown(512, 512, normalize=False)
 
         self.up1 = UNetUp(512, 512)
         self.up2 = UNetUp(1024, 512)
-        self.up3 = UNetUp(1024, 256)
-        self.up4 = UNetUp(512, 128)
-        self.up5 = UNetUp(256, 64)
+        self.up3 = UNetUp(1024, 512)
+        self.up4 = UNetUp(1024, 512)
+        self.up5 = UNetUp(1024, 256)
+        self.up6 = UNetUp(512, 128)
+        self.up7 = UNetUp(256, 64)
 
 
         final = [   nn.Upsample(scale_factor=2),
@@ -79,13 +83,17 @@ class Generator(nn.Module):
         d4 = self.down4(d3)
         d5 = self.down5(d4)
         d6 = self.down6(d5)
-        u1 = self.up1(d6, d5)
-        u2 = self.up2(u1, d4)
-        u3 = self.up3(u2, d3)
-        u4 = self.up4(u3, d2)
-        u5 = self.up5(u4, d1)
+        d7 = self.down7(d6)
+        d8 = self.down8(d7)
+        u1 = self.up1(d8, d7)
+        u2 = self.up2(u1, d6)
+        u3 = self.up3(u2, d5)
+        u4 = self.up4(u3, d4)
+        u5 = self.up5(u4, d3)
+        u6 = self.up6(u5, d2)
+        u7 = self.up7(u6, d1)
 
-        return self.final(u5)
+        return self.final(u7)
 
 ##############################
 #        Encoder
@@ -98,12 +106,12 @@ class Encoder(nn.Module):
         resnet18_model = resnet18(pretrained=True)
 
         # Extracts features at the last fully-connected
-        self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-3])
+        self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-2])
         self.avgpool = nn.AvgPool2d(kernel_size=8, stride=8)
 
         # Output is mu and log(var) for reparameterization trick used in VAEs
-        self.fc_mu = nn.Linear(256, latent_dim)
-        self.fc_logvar = nn.Linear(256, latent_dim)
+        self.fc_mu = nn.Linear(512, latent_dim)
+        self.fc_logvar = nn.Linear(512, latent_dim)
 
     def forward(self, img):
         out = self.feature_extractor(img)
