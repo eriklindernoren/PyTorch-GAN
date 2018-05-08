@@ -217,12 +217,11 @@ $ python3 cyclegan.py --dataset_name monet2photo
 ```
 
 <p align="center">
-    <img src="assets/cyclegan.png" width="240"\>
+    <img src="assets/cyclegan.png" width="900"\>
 </p>
 <p align="center">
-    Rows from top to bottom: (1) Original images from domain A (2) Translated images <br>
-    produced by generator (3) Reconstructed images (4) Original images from domain B <br>
-    (5) Translated images produced by generator (6) Reconstructed images
+    First two rows display monet to phot translations. Last two rows display <br>
+    photo to monet translations.
 </p>
 
 ### Deep Convolutional GAN
