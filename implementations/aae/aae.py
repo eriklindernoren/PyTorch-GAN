@@ -24,7 +24,7 @@ parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rat
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
+parser.add_argument('--latent_dim', type=int, default=10, help='dimensionality of the latent code')
 parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
 parser.add_argument('--channels', type=int, default=1, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=400, help='interval between image sampling')
@@ -41,6 +41,12 @@ def weights_init_normal(m):
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
 
+def reparameterization(mu, logvar):
+    std = torch.exp(logvar / 2)
+    sampled_z = Variable(Tensor(np.random.normal(0, 1, (mu.size(0), opt.latent_dim))))
+    z = sampled_z * std + mu
+    return z
+
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
@@ -50,14 +56,21 @@ class Encoder(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, opt.latent_dim)
+            nn.LeakyReLU(0.2, inplace=True)
         )
+
+        self.mu = nn.Linear(512, opt.latent_dim)
+        self.logvar = nn.Linear(512, opt.latent_dim)
 
     def forward(self, img):
         img_flat = img.view(img.shape[0], -1)
-        latent = self.model(img_flat)
-        return latent
+        x = self.model(img_flat)
+        mu = self.mu(x)
+        logvar = self.logvar(x)
+
+        z = reparameterization(mu, logvar)
+
+        return z
 
 class Decoder(nn.Module):
     def __init__(self):
