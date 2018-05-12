@@ -30,39 +30,31 @@ parser.add_argument('--sample_interval', type=int, default=400, help='interval b
 opt = parser.parse_args()
 print(opt)
 
-cuda = True if torch.cuda.is_available() else False
+img_shape = (opt.channels, opt.img_size, opt.img_size)
 
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    if classname.find('Linear') != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
+cuda = True if torch.cuda.is_available() else False
 
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
+        def block(in_feat, out_feat):
+            layers = [  nn.Linear(in_feat, out_feat),
+                        nn.LeakyReLU(0.2, inplace=True)]
+            return layers
+
         self.model = nn.Sequential(
-            nn.Linear(opt.latent_dim, 128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(128, 256),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 1024),
-            nn.BatchNorm1d(1024),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(1024, opt.img_size**2),
+            *block(opt.latent_dim, 128),
+            *block(128, 256),
+            *block(256, 512),
+            *block(512, 1024),
+            nn.Linear(1024, int(np.prod(img_shape))),
             nn.Tanh()
         )
 
-    def forward(self, noise):
-        img = self.model(noise)
-        img = img.view(img.shape[0], opt.channels, opt.img_size, opt.img_size)
+    def forward(self, z):
+        img = self.model(z)
+        img = img.view(img.size(0), *img_shape)
         return img
 
 class Discriminator(nn.Module):
@@ -70,7 +62,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         self.model = nn.Sequential(
-            nn.Linear(opt.img_size**2, 512),
+            nn.Linear(int(np.prod(img_shape)), 512),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2, inplace=True),
@@ -79,7 +71,7 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, img):
-        img_flat = img.view(img.shape[0], -1)
+        img_flat = img.view(img.size(0), -1)
         validity = self.model(img_flat)
 
         return validity
@@ -95,10 +87,6 @@ if cuda:
     generator.cuda()
     discriminator.cuda()
     adversarial_loss.cuda()
-
-# Initialize weights
-generator.apply(weights_init_normal)
-discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs('../../data/mnist', exist_ok=True)
@@ -124,8 +112,8 @@ for epoch in range(opt.n_epochs):
     for i, (imgs, _) in enumerate(dataloader):
 
         # Adversarial ground truths
-        valid = Variable(Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
-        fake = Variable(Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
+        valid = Variable(Tensor(imgs.size(0), 1).fill_(1.0), requires_grad=False)
+        fake = Variable(Tensor(imgs.size(0), 1).fill_(0.0), requires_grad=False)
 
         # Configure input
         real_imgs = Variable(imgs.type(Tensor))

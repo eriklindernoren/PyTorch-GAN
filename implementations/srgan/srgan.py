@@ -51,14 +51,6 @@ print(opt)
 
 cuda = True if torch.cuda.is_available() else False
 
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
-
 # Calculate output of image discriminator (PatchGAN)
 patch_h, patch_w = int(opt.hr_height / 2**4), int(opt.hr_width / 2**4)
 patch = (opt.batch_size, 1, patch_h, patch_w)

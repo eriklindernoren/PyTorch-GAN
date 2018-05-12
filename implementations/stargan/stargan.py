@@ -59,11 +59,6 @@ parser.add_argument('--n_critic', type=int, default=5, help='number of training 
 opt = parser.parse_args()
 print(opt)
 
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-
 c_dim = len(opt.selected_attrs)
 img_shape = (opt.channels, opt.img_height, opt.img_width)
 

@@ -31,15 +31,9 @@ parser.add_argument('--sample_interval', type=int, default=400, help='interval b
 opt = parser.parse_args()
 print(opt)
 
-cuda = True if torch.cuda.is_available() else False
+img_shape = (opt.channels, opt.img_size, opt.img_size)
 
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
+cuda = True if torch.cuda.is_available() else False
 
 def reparameterization(mu, logvar):
     std = torch.exp(logvar / 2)
@@ -52,7 +46,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
 
         self.model = nn.Sequential(
-            nn.Linear(opt.img_size**2, 512),
+            nn.Linear(int(np.prod(img_shape)), 512),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),
@@ -67,9 +61,7 @@ class Encoder(nn.Module):
         x = self.model(img_flat)
         mu = self.mu(x)
         logvar = self.logvar(x)
-
         z = reparameterization(mu, logvar)
-
         return z
 
 class Decoder(nn.Module):
@@ -82,13 +74,13 @@ class Decoder(nn.Module):
             nn.Linear(512, 512),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, opt.img_size**2),
+            nn.Linear(512, int(np.prod(img_shape))),
             nn.Tanh()
         )
 
-    def forward(self, noise):
-        img_flat = self.model(noise)
-        img = img_flat.view(img_flat.shape[0], opt.channels, opt.img_size, opt.img_size)
+    def forward(self, z):
+        img_flat = self.model(z)
+        img = img_flat.view(img_flat.shape[0], *img_shape)
         return img
 
 class Discriminator(nn.Module):
@@ -104,9 +96,8 @@ class Discriminator(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, latent):
-        validity = self.model(latent)
-
+    def forward(self, z):
+        validity = self.model(z)
         return validity
 
 # Use binary cross-entropy loss
@@ -124,11 +115,6 @@ if cuda:
     discriminator.cuda()
     adversarial_loss.cuda()
     pixelwise_loss.cuda()
-
-# Initialize weights
-encoder.apply(weights_init_normal)
-decoder.apply(weights_init_normal)
-discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs('../../data/mnist', exist_ok=True)

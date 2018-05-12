@@ -61,8 +61,8 @@ class Generator(nn.Module):
             nn.Tanh()
         )
 
-    def forward(self, noise):
-        out = self.l1(noise)
+    def forward(self, z):
+        out = self.l1(z)
         out = out.view(out.shape[0], 128, self.init_size, self.init_size)
         img = self.conv_blocks(out)
         return img

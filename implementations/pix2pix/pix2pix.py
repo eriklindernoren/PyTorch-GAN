@@ -42,14 +42,6 @@ print(opt)
 os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
 os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
-
 cuda = True if torch.cuda.is_available() else False
 
 # Loss functions

@@ -31,15 +31,9 @@ parser.add_argument('--sample_interval', type=int, default=400, help='interval b
 opt = parser.parse_args()
 print(opt)
 
-cuda = True if torch.cuda.is_available() else False
+img_shape = (opt.channels, opt.img_size, opt.img_size)
 
-def weights_init_normal(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
-        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
-        torch.nn.init.constant_(m.bias.data, 0.0)
+cuda = True if torch.cuda.is_available() else False
 
 class Generator(nn.Module):
     def __init__(self):
@@ -47,19 +41,19 @@ class Generator(nn.Module):
 
         self.label_emb = nn.Embedding(opt.n_classes, opt.n_classes)
 
+        def block(in_feat, out_feat, normalize=True):
+            layers = [  nn.Linear(in_feat, out_feat)]
+            if normalize:
+                layers.append(nn.BatchNorm1d(out_feat, 0.8))
+            layers.append(nn.LeakyReLU(0.2, inplace=True))
+            return layers
+
         self.model = nn.Sequential(
-            nn.Linear(opt.latent_dim+opt.n_classes, 128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(128, 256),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 1024),
-            nn.BatchNorm1d(1024),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(1024, opt.channels*opt.img_size**2),
+            *block(opt.latent_dim+opt.n_classes, 128, normalize=False),
+            *block(128, 256),
+            *block(256, 512),
+            *block(512, 1024),
+            nn.Linear(1024, int(np.prod(img_shape))),
             nn.Tanh()
         )
 
@@ -67,8 +61,7 @@ class Generator(nn.Module):
         # Concatenate label embedding and image to produce input
         gen_input = torch.cat((self.label_emb(labels), noise), -1)
         img = self.model(gen_input)
-        # Reshape to image shape
-        img = img.view(img.size(0), opt.channels, opt.img_size, opt.img_size)
+        img = img.view(img.size(0), *img_shape)
         return img
 
 class Discriminator(nn.Module):
@@ -78,7 +71,7 @@ class Discriminator(nn.Module):
         self.label_embedding = nn.Embedding(opt.n_classes, opt.n_classes)
 
         self.model = nn.Sequential(
-            nn.Linear(opt.n_classes + opt.img_size**2, 512),
+            nn.Linear(opt.n_classes + int(np.prod(img_shape)), 512),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(512, 512),
             nn.Dropout(0.4),
@@ -91,9 +84,8 @@ class Discriminator(nn.Module):
 
     def forward(self, img, labels):
         # Concatenate label embedding and image to produce input
-        d_input = torch.cat((img.view(img.size(0), -1), self.label_embedding(labels)), -1)
-        validity = self.model(d_input)
-
+        d_in = torch.cat((img.view(img.size(0), -1), self.label_embedding(labels)), -1)
+        validity = self.model(d_in)
         return validity
 
 # Loss functions
@@ -109,10 +101,6 @@ if cuda:
     discriminator.cuda()
     adversarial_loss.cuda()
     auxiliary_loss.cuda()
-
-# Initialize weights
-generator.apply(weights_init_normal)
-discriminator.apply(weights_init_normal)
 
 # Configure data loader
 os.makedirs('../../data/mnist', exist_ok=True)
