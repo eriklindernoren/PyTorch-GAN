@@ -31,7 +31,7 @@ class ResidualBlock(nn.Module):
 
         conv_block = [  nn.Conv2d(in_features, in_features, 3, 1, 1),
                         nn.BatchNorm2d(in_features),
-                        nn.ReLU(inplace=True),
+                        nn.ReLU(),
                         nn.Conv2d(in_features, in_features, 3, 1, 1),
                         nn.BatchNorm2d(in_features)  ]
 

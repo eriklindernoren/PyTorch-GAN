@@ -12,7 +12,7 @@ class UNetDown(nn.Module):
         layers = [nn.Conv2d(in_size, out_size, 4, 2, 1)]
         if normalize:
             layers.append(nn.InstanceNorm2d(out_size))
-        layers.append(nn.LeakyReLU(0.2, inplace=True))
+        layers.append(nn.LeakyReLU(0.2))
         if dropout:
             layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)

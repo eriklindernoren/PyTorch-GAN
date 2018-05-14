@@ -9,14 +9,12 @@ import torch
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
         super(UNetDown, self).__init__()
-        model = [   nn.Conv2d(in_size, out_size, 3, stride=2, padding=1),
-                    nn.LeakyReLU(0.2, inplace=True) ]
-
+        model = [nn.Conv2d(in_size, out_size, 4, stride=2, padding=1, bias=False)]
         if normalize:
-            model += [nn.BatchNorm2d(out_size, 0.8)]
-
+            model.append(nn.BatchNorm2d(out_size, 0.8))
+        model.append(nn.LeakyReLU(0.2))
         if dropout:
-            model += [nn.Dropout(dropout)]
+            model.append(nn.Dropout(dropout))
 
         self.model = nn.Sequential(*model)
 
@@ -26,12 +24,11 @@ class UNetDown(nn.Module):
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
-        model = [   nn.Upsample(scale_factor=2),
-                    nn.Conv2d(in_size, out_size, 3, stride=1, padding=1),
-                    nn.LeakyReLU(0.2, inplace=True),
-                    nn.BatchNorm2d(out_size, 0.8) ]
+        model = [   nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
+                    nn.BatchNorm2d(out_size, 0.8),
+                    nn.ReLU(inplace=True)]
         if dropout:
-            model += [nn.Dropout(dropout)]
+            model.append(nn.Dropout(dropout))
 
         self.model = nn.Sequential(*model)
 
