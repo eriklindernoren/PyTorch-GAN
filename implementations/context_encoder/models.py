@@ -11,14 +11,14 @@ class Generator(nn.Module):
             layers = [nn.Conv2d(in_feat, out_feat, 4, stride=2, padding=1)]
             if normalize:
                 layers.append(nn.BatchNorm2d(out_feat, 0.8))
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
+            layers.append(nn.LeakyReLU(0.2))
             return layers
 
         def upsample(in_feat, out_feat, normalize=True):
             layers = [nn.ConvTranspose2d(in_feat, out_feat, 4, stride=2, padding=1)]
             if normalize:
                 layers.append(nn.BatchNorm2d(out_feat, 0.8))
-            layers.append(nn.ReLU(inplace=True))
+            layers.append(nn.ReLU())
             return layers
 
         self.model = nn.Sequential(

@@ -31,12 +31,12 @@ os.makedirs('images', exist_ok=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
-parser.add_argument('--batch_size', type=int, default=4, help='size of the batches')
+parser.add_argument('--batch_size', type=int, default=8, help='size of the batches')
 parser.add_argument('--dataset_name', type=str, default='img_align_celeba', help='name of the dataset')
 parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
 parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
 parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
-parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
+parser.add_argument('--n_cpu', type=int, default=4, help='number of cpu threads to use during batch generation')
 parser.add_argument('--latent_dim', type=int, default=100, help='dimensionality of the latent space')
 parser.add_argument('--img_size', type=int, default=128, help='size of each image dimension')
 parser.add_argument('--mask_size', type=int, default=64, help='size of random mask')
@@ -83,7 +83,7 @@ transforms_ = [ transforms.Resize((opt.img_size, opt.img_size), Image.BICUBIC),
                 transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5)) ]
 dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
                         batch_size=opt.batch_size, shuffle=True, num_workers=opt.n_cpu)
-sample_dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
+test_dataloader = DataLoader(ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, mode='val'),
                         batch_size=12, shuffle=True, num_workers=1)
 
 # Optimizers
@@ -92,35 +92,11 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-# Adversarial ground truths
-valid = Variable(Tensor(np.ones(patch)), requires_grad=False)
-fake = Variable(Tensor(np.zeros(patch)), requires_grad=False)
-
-def apply_random_mask(imgs):
-    idx = np.random.randint(0, opt.img_size-opt.mask_size, (imgs.shape[0], 2))
-
-    masked_imgs = imgs.clone()
-    masked_parts = None
-    for i, (y1, x1) in enumerate(idx):
-        y2, x2 = y1 + opt.mask_size, x1 + opt.mask_size
-        masked_part = masked_imgs[i:i+1, :, y1:y2, x1:x2].clone()
-        masked_parts = masked_part if masked_parts is None else torch.cat((masked_parts, masked_part),  0)
-        masked_imgs[i, :, y1:y2, x1:x2] = 1
-
-    return masked_imgs, masked_parts
-
-def apply_center_mask(imgs):
-    # Get upper-left pixel coordinate
-    i = (imgs.shape[2] - opt.mask_size) // 2
-
-    masked_imgs = imgs.clone()
-    masked_imgs[:, :, i:i+opt.mask_size, i:i+opt.mask_size] = 1
-
-    return masked_imgs, i
-
 def save_sample(batches_done):
-    samples = Variable(next(iter(sample_dataloader)).type(Tensor))
-    masked_samples, i = apply_center_mask(samples)
+    samples, masked_samples, i = next(iter(test_dataloader))
+    samples = Variable(samples.type(Tensor))
+    masked_samples = Variable(masked_samples.type(Tensor))
+    i = i[0].item() # Upper-left coordinate of mask
     # Generate inpainted image
     gen_mask = generator(masked_samples)
     filled_samples = masked_samples.clone()
@@ -134,9 +110,7 @@ def save_sample(batches_done):
 # ----------
 
 for epoch in range(opt.n_epochs):
-    for i, imgs in enumerate(dataloader):
-
-        masked_imgs, masked_parts = apply_random_mask(imgs)
+    for i, (imgs, masked_imgs, masked_parts) in enumerate(dataloader):
 
         # Adversarial ground truths
         valid = Variable(Tensor(imgs.shape[0], *patch).fill_(1.0), requires_grad=False)

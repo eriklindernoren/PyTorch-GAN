@@ -188,6 +188,13 @@ $ cd implementations/context_encoder/
 $ python3 context_encoder.py
 ```
 
+<p align="center">
+    <img src="assets/context_encoder.png" width="640"\>
+</p>
+<p align="center">
+    Rows: Masked | Inpainted | Original | Masked | Inpainted | Original
+</p>
+
 ### Coupled GAN
 _Coupled Generative Adversarial Networks_
 
