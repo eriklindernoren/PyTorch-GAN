@@ -32,6 +32,7 @@ Collection of PyTorch implementations of Generative Adversarial Network varietie
     + [Softmax GAN](#softmax-gan)
     + [StarGAN](#stargan)
     + [Super-Resolution GAN](#super-resolution-gan)
+    + [UNIT](#UNIT)
     + [Wasserstein GAN](#wasserstein-gan)
     + [Wasserstein GAN GP](#wasserstein-gan-gp)
 
@@ -575,6 +576,25 @@ $ python3 srgan.py
     Rows from top to bottom: (1) Generated sample by Super-resolution GAN (2) The full <br>
     resolution image
 </p>
+
+### UNIT
+_Unsupervised Image-to-Image Translation Networks_
+
+#### Authors
+Ming-Yu Liu, Thomas Breuel, Jan Kautz
+
+#### Abstract
+Unsupervised image-to-image translation aims at learning a joint distribution of images in different domains by using images from the marginal distributions in individual domains. Since there exists an infinite set of joint distributions that can arrive the given marginal distributions, one could infer nothing about the joint distribution from the marginal distributions without additional assumptions. To address the problem, we make a shared-latent space assumption and propose an unsupervised image-to-image translation framework based on Coupled GANs. We compare the proposed framework with competing approaches and present high quality image translation results on various challenging unsupervised image translation tasks, including street scene image translation, animal image translation, and face image translation. We also apply the proposed framework to domain adaptation and achieve state-of-the-art performance on benchmark datasets. Code and additional results are available in this [https URL](https://github.com/mingyuliutw/unit).
+
+[[Paper]](https://arxiv.org/abs/1703.00848) [[Code]](implementations/unit/unit.py)
+
+#### Run Example
+```
+$ cd data/
+$ bash download_cyclegan_dataset.sh apple2orange
+$ cd implementations/unit/
+$ python3 unit.py --dataset_name apple2orange
+```
 
 ### Wasserstein GAN
 _Wasserstein GAN_
