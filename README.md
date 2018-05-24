@@ -32,7 +32,7 @@ Collection of PyTorch implementations of Generative Adversarial Network varietie
     + [Softmax GAN](#softmax-gan)
     + [StarGAN](#stargan)
     + [Super-Resolution GAN](#super-resolution-gan)
-    + [UNIT](#UNIT)
+    + [UNIT](#unit)
     + [Wasserstein GAN](#wasserstein-gan)
     + [Wasserstein GAN GP](#wasserstein-gan-gp)
 

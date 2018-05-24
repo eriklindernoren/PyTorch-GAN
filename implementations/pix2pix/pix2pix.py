@@ -104,7 +104,7 @@ def sample_images(batches_done):
 #  Training
 # ----------
 
-start_time = time.time()
+prev_time = time.time()
 
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
@@ -164,7 +164,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Determine approximate time left
         batches_done = epoch * len(dataloader) + i
         batches_left = opt.n_epochs * len(dataloader) - batches_done
-        time_left = datetime.timedelta(seconds=batches_left * (time.time() - start_time)/ (batches_done + 1))
+        time_left = datetime.timedelta(seconds=batches_left * (time.time() - prev_time))
+        prev_time = time.time()
 
         # Print log
         sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, pixel: %f, adv: %f] ETA: %s" %
