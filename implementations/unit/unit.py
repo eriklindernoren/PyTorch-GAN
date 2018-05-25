@@ -5,6 +5,7 @@ import math
 import itertools
 import datetime
 import time
+import sys
 
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
@@ -35,7 +36,7 @@ parser.add_argument('--img_width', type=int, default=256, help='size of image wi
 parser.add_argument('--channels', type=int, default=3, help='number of image channels')
 parser.add_argument('--sample_interval', type=int, default=100, help='interval between sampling images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between saving model checkpoints')
-parser.add_argument('--n_downsample', type=int, default=3, help='number downsampling layers in encoder')
+parser.add_argument('--n_downsample', type=int, default=2, help='number downsampling layers in encoder')
 parser.add_argument('--dim', type=int, default=64, help='number of filters in first encoder layer')
 opt = parser.parse_args()
 print(opt)
@@ -140,7 +141,7 @@ def sample_images(batches_done):
                             X2.data, fake_X1.data), 0)
     save_image(img_sample, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=5, normalize=True)
 
-def kl_loss(mu):
+def compute_kl(mu):
     mu_2 = torch.pow(mu, 2)
     loss = torch.mean(mu_2)
     return loss
@@ -161,9 +162,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
         valid = Variable(Tensor(np.ones((X1.size(0), *patch))), requires_grad=False)
         fake = Variable(Tensor(np.zeros((X1.size(0), *patch))), requires_grad=False)
 
-        # ------------------
-        #  Train Generators
-        # ------------------
+        # -------------------------------
+        #  Train Encoders and Generators
+        # -------------------------------
+
         optimizer_G.zero_grad()
 
         # Get shared latent representation
@@ -185,14 +187,14 @@ for epoch in range(opt.epoch, opt.n_epochs):
         cycle_X2 = G2(Z1_)
 
         # Losses
-        loss_KL_1   = lambda_0 * kl_loss(mu1)
-        loss_KL_2   = lambda_0 * kl_loss(mu2)
-        loss_GAN_1  = lambda_1 * criterion_GAN(D1(fake_X1), valid)
-        loss_GAN_2  = lambda_1 * criterion_GAN(D1(fake_X2), valid)
+        loss_GAN_1  = lambda_0 * criterion_GAN(D1(fake_X1), valid)
+        loss_GAN_2  = lambda_0* criterion_GAN(D2(fake_X2), valid)
+        loss_KL_1   = lambda_1 * compute_kl(mu1)
+        loss_KL_2   = lambda_1 * compute_kl(mu2)
         loss_ID_1   = lambda_2 * criterion_pixel(recon_X1, X1)
         loss_ID_2   = lambda_2 * criterion_pixel(recon_X2, X2)
-        loss_KL_1_  = lambda_3 * kl_loss(mu1_)
-        loss_KL_2_  = lambda_3 * kl_loss(mu2_)
+        loss_KL_1_  = lambda_3 * compute_kl(mu1_)
+        loss_KL_2_  = lambda_3 * compute_kl(mu2_)
         loss_cyc_1  = lambda_4 * criterion_pixel(cycle_X1, X1)
         loss_cyc_2  = lambda_4 * criterion_pixel(cycle_X2, X2)
 
@@ -212,38 +214,28 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_G.step()
 
         # -----------------------
-        #  Train Discriminator A
+        #  Train Discriminator 1
         # -----------------------
 
         optimizer_D1.zero_grad()
 
-        # Real loss
-        loss_real = criterion_GAN(D1(X1), valid)
-        # Fake loss
-        loss_fake = criterion_GAN(D1(fake_X1.detach()), fake)
-        # Total loss
-        loss_D1 = (loss_real + loss_fake) / 2
+        loss_D1 =   criterion_GAN(D1(X1), valid) + \
+                    criterion_GAN(D1(fake_X1.detach()), fake)
 
         loss_D1.backward()
         optimizer_D1.step()
 
         # -----------------------
-        #  Train Discriminator B
+        #  Train Discriminator 2
         # -----------------------
 
         optimizer_D2.zero_grad()
 
-        # Real loss
-        loss_real = criterion_GAN(D2(X2), valid)
-        # Fake loss
-        loss_fake = criterion_GAN(D2(fake_X2.detach()), fake)
-        # Total loss
-        loss_D2 = (loss_real + loss_fake) / 2
+        loss_D2 =   criterion_GAN(D2(X2), valid) + \
+                    criterion_GAN(D2(fake_X2.detach()), fake)
 
         loss_D2.backward()
         optimizer_D2.step()
-
-        loss_D = (loss_D1 + loss_D2) / 2
 
         # --------------
         #  Log Progress
@@ -259,7 +251,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         sys.stdout.write("\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] ETA: %s" %
                                                         (epoch, opt.n_epochs,
                                                         i, len(dataloader),
-                                                        loss_D.item(), loss_G.item(),
+                                                        (loss_D1 + loss_D2).item(),
+                                                        loss_G.item(),
                                                         time_left))
 
         # If at sample interval save image
