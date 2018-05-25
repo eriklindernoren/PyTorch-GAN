@@ -50,8 +50,11 @@ os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
 os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
 # Losses
-criterion_GAN = torch.nn.MSELoss()
 criterion_recon = torch.nn.L1Loss()
+
+# Adversarial ground truths
+valid = 1
+fake = 0
 
 # Calculate output of image discriminator (PatchGAN)
 patch = (1, opt.img_height // 2**4, opt.img_width // 2**4)
@@ -61,8 +64,8 @@ Enc1 = Encoder(dim=opt.dim, n_downsample=opt.n_downsample, n_residual=opt.n_resi
 Dec1 = Decoder(dim=opt.dim, n_upsample=opt.n_downsample, n_residual=opt.n_residual, style_dim=opt.style_dim)
 Enc2 = Encoder(dim=opt.dim, n_downsample=opt.n_downsample, n_residual=opt.n_residual, style_dim=opt.style_dim)
 Dec2 = Decoder(dim=opt.dim, n_upsample=opt.n_downsample, n_residual=opt.n_residual, style_dim=opt.style_dim)
-D1 = Discriminator()
-D2 = Discriminator()
+D1 = MultiDiscriminator()
+D2 = MultiDiscriminator()
 
 if cuda:
     Enc1 = Enc1.cuda()
@@ -71,7 +74,6 @@ if cuda:
     Dec2 = Dec2.cuda()
     D1 = D1.cuda()
     D2 = D2.cuda()
-    criterion_GAN.cuda()
     criterion_recon.cuda()
 
 if opt.epoch != 0:
@@ -92,12 +94,6 @@ else:
     D2.apply(weights_init_normal)
 
 # Loss weights
-lambda_0 = 10   # GAN
-lambda_1 = 0.1  # KL (encoded images)
-lambda_2 = 100  # ID pixel-wise
-lambda_3 = 0.1  # KL (encoded translated images)
-lambda_4 = 100  # Cycle pixel-wise
-
 lambda_gan      = 1
 lambda_id       = 10
 lambda_style    = 1
@@ -164,10 +160,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         X1 = Variable(batch['A'].type(Tensor))
         X2 = Variable(batch['B'].type(Tensor))
 
-        # Adversarial ground truths
-        valid = Variable(Tensor(np.ones((X1.size(0), *patch))), requires_grad=False)
-        fake = Variable(Tensor(np.zeros((X1.size(0), *patch))), requires_grad=False)
-
+        # Sampled style codes
         style_1 = Variable(torch.randn(X1.size(0), opt.style_dim, 1, 1).type(Tensor))
         style_2 = Variable(torch.randn(X1.size(0), opt.style_dim, 1, 1).type(Tensor))
 
@@ -196,8 +189,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         X212 = Dec2(c_code_21, s_code_2) if lambda_cyc > 0 else 0
 
         # Losses
-        loss_GAN_1  = lambda_gan    * criterion_GAN(D1(X21), valid)
-        loss_GAN_2  = lambda_gan    * criterion_GAN(D2(X12), valid)
+        loss_GAN_1  = lambda_gan    * D1.compute_loss(X21, valid)
+        loss_GAN_2  = lambda_gan    * D2.compute_loss(X12, valid)
         loss_ID_1   = lambda_id     * criterion_recon(X11, X1)
         loss_ID_2   = lambda_id     * criterion_recon(X22, X2)
         loss_s_1    = lambda_style  * criterion_recon(s_code_12, style_1)
@@ -228,8 +221,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_D1.zero_grad()
 
-        loss_D1 =   criterion_GAN(D1(X1), valid) + \
-                    criterion_GAN(D1(X21.detach()), fake)
+        loss_D1 =   D1.compute_loss(X1, valid) + \
+                    D1.compute_loss(X21.detach(), fake)
 
         loss_D1.backward()
         optimizer_D1.step()
@@ -240,8 +233,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_D2.zero_grad()
 
-        loss_D2 =   criterion_GAN(D2(X2), valid) + \
-                    criterion_GAN(D2(X12.detach()), fake)
+        loss_D2 =   D2.compute_loss(X2, valid) + \
+                    D2.compute_loss(X12.detach(), fake)
 
         loss_D2.backward()
         optimizer_D2.step()
