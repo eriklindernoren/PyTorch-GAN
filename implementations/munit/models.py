@@ -57,7 +57,7 @@ class Decoder(nn.Module):
             layers += [ nn.Upsample(scale_factor=2),
                         nn.Conv2d(dim, dim // 2, 5, stride=1, padding=2),
                         LayerNorm(dim // 2),
-                        nn.LeakyReLU(0.2, inplace=True) ]
+                        nn.ReLU(inplace=True) ]
             dim = dim // 2
 
         # Output layer
@@ -112,7 +112,7 @@ class ContentEncoder(nn.Module):
         layers = [  nn.ReflectionPad2d(3),
                     nn.Conv2d(in_channels, dim, 7),
                     nn.InstanceNorm2d(64),
-                    nn.LeakyReLU(0.2, inplace=True) ]
+                    nn.ReLU(inplace=True) ]
 
         # Downsampling
         for _ in range(n_downsample):
@@ -141,7 +141,7 @@ class StyleEncoder(nn.Module):
         # Initial conv block
         layers = [  nn.ReflectionPad2d(3),
                     nn.Conv2d(in_channels, dim, 7),
-                    nn.LeakyReLU(0.2, inplace=True) ]
+                    nn.ReLU(inplace=True) ]
 
         # Downsampling
         for _ in range(2):
@@ -195,6 +195,7 @@ class MultiDiscriminator(nn.Module):
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
+        # Extracts three discriminator models
         self.models = nn.ModuleList()
         for i in range(3):
             self.models.add_module('disc_%d' % i,
@@ -209,12 +210,12 @@ class MultiDiscriminator(nn.Module):
 
         self.downsample = nn.AvgPool2d(in_channels, stride=2, padding=[1, 1], count_include_pad=False)
 
-    def compute_loss(self, x, scalar_gt):
-        """Computes the MSE between model output and scalar_gt"""
+    def compute_loss(self, x, gt):
+        """Computes the MSE between model output and scalar gt"""
         outputs = self.forward(x)
         loss = 0
         for out in outputs:
-            loss += torch.mean((out - scalar_gt)**2)
+            loss += torch.mean((out - gt)**2)
         return loss
 
     def forward(self, x):

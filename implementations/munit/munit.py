@@ -49,7 +49,6 @@ cuda = True if torch.cuda.is_available() else False
 os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
 os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
-# Losses
 criterion_recon = torch.nn.L1Loss()
 
 # Adversarial ground truths
@@ -97,7 +96,7 @@ else:
 lambda_gan      = 1
 lambda_id       = 10
 lambda_style    = 1
-lambda_code     = 1
+lambda_cont     = 1
 lambda_cyc      = 0
 
 # Optimizers
@@ -195,8 +194,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_ID_2   = lambda_id     * criterion_recon(X22, X2)
         loss_s_1    = lambda_style  * criterion_recon(s_code_12, style_1)
         loss_s_2    = lambda_style  * criterion_recon(s_code_21, style_2)
-        loss_c_1    = lambda_code   * criterion_recon(c_code_12, c_code_1.detach())
-        loss_c_2    = lambda_code   * criterion_recon(c_code_21, c_code_2.detach())
+        loss_c_1    = lambda_cont   * criterion_recon(c_code_12, c_code_1.detach())
+        loss_c_2    = lambda_cont   * criterion_recon(c_code_21, c_code_2.detach())
         loss_cyc_1  = lambda_cyc    * criterion_recon(X121, X1) if lambda_cyc > 0 else 0
         loss_cyc_2  = lambda_cyc    * criterion_recon(X212, X2) if lambda_cyc > 0 else 0
 
