@@ -51,13 +51,6 @@ os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
 criterion_recon = torch.nn.L1Loss()
 
-# Adversarial ground truths
-valid = 1
-fake = 0
-
-# Calculate output of image discriminator (PatchGAN)
-patch = (1, opt.img_height // 2**4, opt.img_width // 2**4)
-
 # Initialize encoders, generators and discriminators
 Enc1 = Encoder(dim=opt.dim, n_downsample=opt.n_downsample, n_residual=opt.n_residual, style_dim=opt.style_dim)
 Dec1 = Decoder(dim=opt.dim, n_upsample=opt.n_downsample, n_residual=opt.n_residual, style_dim=opt.style_dim)
@@ -129,27 +122,29 @@ def sample_images(batches_done):
     imgs = next(iter(val_dataloader))
     img_samples = None
     for img1, img2 in zip(imgs['A'], imgs['B']):
-        # Repeat input image by number of channels
-        X1 = img1.view(1, *img1.shape).repeat(8, 1, 1, 1)
+        # Create copies of image
+        X1 = img1.unsqueeze(0).repeat(opt.style_dim, 1, 1, 1)
         X1 = Variable(X1.type(Tensor))
-        # Get interpolated noise [-1, 1]
-        s_code = np.repeat(np.linspace(-1, 1, 8)[:, np.newaxis], opt.style_dim, 1)
+        # Get interpolated style codes
+        s_code = np.repeat(np.linspace(-1, 1, opt.style_dim)[:, np.newaxis], opt.style_dim, 1)
         s_code = Variable(Tensor(s_code))
-        # Generator samples
+        # Generate samples
         c_code_1, _ = Enc1(X1)
         X12 = Dec2(c_code_1, s_code)
         # Concatenate samples horisontally
         X12 = torch.cat([x for x in X12.data.cpu()], -1)
-        img_sample = torch.cat((img1, X12), -1)
-        img_sample = img_sample.view(1, *img_sample.shape)
-        # Cocatenate with previous samples vertically
+        img_sample = torch.cat((img1, X12), -1).unsqueeze(0)
+        # Concatenate with previous samples vertically
         img_samples = img_sample if img_samples is None else torch.cat((img_samples, img_sample), -2)
     save_image(img_samples, 'images/%s/%s.png' % (opt.dataset_name, batches_done), nrow=5, normalize=True)
-
 
 # ----------
 #  Training
 # ----------
+
+# Adversarial ground truths
+valid = 1
+fake = 0
 
 prev_time = time.time()
 for epoch in range(opt.epoch, opt.n_epochs):
@@ -263,7 +258,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     # Update learning rates
     lr_scheduler_G.step()
-    lr_scheduler_D.step()
+    lr_scheduler_D1.step()
     lr_scheduler_D2.step()
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:

@@ -111,7 +111,7 @@ class ContentEncoder(nn.Module):
         # Initial convolution block
         layers = [  nn.ReflectionPad2d(3),
                     nn.Conv2d(in_channels, dim, 7),
-                    nn.InstanceNorm2d(64),
+                    nn.InstanceNorm2d(dim),
                     nn.ReLU(inplace=True) ]
 
         # Downsampling
@@ -212,10 +212,7 @@ class MultiDiscriminator(nn.Module):
 
     def compute_loss(self, x, gt):
         """Computes the MSE between model output and scalar gt"""
-        outputs = self.forward(x)
-        loss = 0
-        for out in outputs:
-            loss += torch.mean((out - gt)**2)
+        loss = sum([torch.mean((out - gt)**2) for out in self.forward(x)])
         return loss
 
     def forward(self, x):

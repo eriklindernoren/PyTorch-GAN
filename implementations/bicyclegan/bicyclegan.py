@@ -42,35 +42,25 @@ print(opt)
 os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)
 os.makedirs('saved_models/%s' % opt.dataset_name, exist_ok=True)
 
+cuda = True if torch.cuda.is_available() else False
+
 img_shape = (opt.channels, opt.img_height, opt.img_width)
 
 # Loss functions
-adversarial_loss = torch.nn.MSELoss()
-pixelwise_loss = torch.nn.L1Loss()
-latent_loss = torch.nn.L1Loss()
-kl_loss = torch.nn.KLDivLoss()
-
-cuda = True if torch.cuda.is_available() else False
-
-# Calculate outputs of multilevel PatchGAN
-patch1 = (1, opt.img_height // 2**2, opt.img_width // 2**2)
-patch2 = (1, opt.img_height // 2**3, opt.img_width // 2**3)
+mae_loss = torch.nn.L1Loss()
 
 # Initialize generator, encoder and discriminators
 generator = Generator(opt.latent_dim, img_shape)
 encoder = Encoder(opt.latent_dim)
-D_VAE = Discriminator()
-D_LR = Discriminator()
+D_VAE = MultiDiscriminator()
+D_LR = MultiDiscriminator()
 
 if cuda:
     generator = generator.cuda()
     encoder.cuda()
     D_VAE = D_VAE.cuda()
     D_LR = D_LR.cuda()
-    adversarial_loss.cuda()
-    pixelwise_loss.cuda()
-    latent_loss.cuda()
-    kl_loss.cuda()
+    mae_loss.cuda()
 
 if opt.epoch != 0:
     # Load pretrained models
@@ -137,6 +127,10 @@ def reparameterization(mu, logvar):
 #  Training
 # ----------
 
+# Adversarial loss
+valid = 1
+fake = 0
+
 prev_time = time.time()
 for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
@@ -144,12 +138,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Set model input
         real_A = Variable(batch['A'].type(Tensor))
         real_B = Variable(batch['B'].type(Tensor))
-
-        # Adversarial ground truths
-        valid1 = Variable(Tensor(np.ones((real_A.size(0), *patch1))), requires_grad=False)
-        valid2 = Variable(Tensor(np.ones((real_A.size(0), *patch2))), requires_grad=False)
-        fake1 = Variable(Tensor(np.zeros((real_A.size(0), *patch1))), requires_grad=False)
-        fake2 = Variable(Tensor(np.zeros((real_A.size(0), *patch2))), requires_grad=False)
 
         #-------------------------------
         #  Train Generator and Encoder
@@ -167,16 +155,12 @@ for epoch in range(opt.epoch, opt.n_epochs):
         encoded_z = reparameterization(mu, logvar)
         fake_B = generator(real_A, encoded_z)
 
-        # Discriminator evaluates generated samples
-        VAE_validity1, VAE_validity2 = D_VAE(fake_B)
-
         # Pixelwise loss of translated image by VAE
-        loss_pixel = pixelwise_loss(fake_B, real_B)
+        loss_pixel = mae_loss(fake_B, real_B)
         # Kullback-Leibler divergence of encoded B
         loss_kl = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
         # Adversarial loss
-        loss_VAE_GAN =  (adversarial_loss(VAE_validity1, valid1) + \
-                        adversarial_loss(VAE_validity2, valid2)) / 2
+        loss_VAE_GAN =  D_VAE.compute_loss(fake_B, valid)
 
         #---------
         # cLR-GAN
@@ -185,13 +169,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Produce output using sampled z (cLR-GAN)
         sampled_z = Variable(Tensor(np.random.normal(0, 1, (real_A.size(0), opt.latent_dim))))
         _fake_B = generator(real_A, sampled_z)
-
-        # Discriminator evaluates generated samples
-        LR_validity1, LR_validity2 = D_LR(_fake_B)
-
         # cLR Loss: Adversarial loss
-        loss_LR_GAN =   (adversarial_loss(LR_validity1, valid1) + \
-                        adversarial_loss(LR_validity2, valid2)) / 2
+        loss_LR_GAN =  D_LR.compute_loss(_fake_B, valid)
 
         #----------------------------------
         # Total Loss (Generator + Encoder)
@@ -211,7 +190,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Latent L1 loss
         _mu, _ = encoder(_fake_B)
-        loss_latent = lambda_latent * latent_loss(_mu, sampled_z)
+        loss_latent = lambda_latent * mae_loss(_mu, sampled_z)
 
         loss_latent.backward()
         optimizer_G.step()
@@ -222,18 +201,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_D_VAE.zero_grad()
 
-        # Real loss
-        pred_real1, pred_real2 = D_VAE(real_B)
-        loss_real = (adversarial_loss(pred_real1, valid1) + \
-                    adversarial_loss(pred_real2, valid2)) / 2
-
-        # Fake loss (D_LR evaluates samples produced by encoded B)
-        pred_gen1, pred_gen2 = D_VAE(fake_B.detach())
-        loss_fake = (adversarial_loss(pred_gen1, fake1) + \
-                    adversarial_loss(pred_gen2, fake2)) / 2
-
-        # Total loss
-        loss_D_VAE = (loss_real + loss_fake) / 2
+        loss_D_VAE =    D_VAE.compute_loss(real_B, valid) + \
+                        D_VAE.compute_loss(fake_B.detach(), fake)
 
         loss_D_VAE.backward()
         optimizer_D_VAE.step()
@@ -244,18 +213,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_D_LR.zero_grad()
 
-        # Real loss
-        pred_real1, pred_real2 = D_LR(real_B)
-        loss_real = (adversarial_loss(pred_real1, valid1) + \
-                    adversarial_loss(pred_real2, valid2)) / 2
-
-        # Fake loss (D_LR evaluates samples produced by sampled z)
-        pred_gen1, pred_gen2 = D_LR(_fake_B.detach())
-        loss_fake = (adversarial_loss(pred_gen1, fake1) + \
-                    adversarial_loss(pred_gen2, fake2)) / 2
-
-        # Total loss
-        loss_D_LR = (loss_real + loss_fake) / 2
+        loss_D_LR =    D_VAE.compute_loss(real_B, valid) + \
+                        D_VAE.compute_loss(_fake_B.detach(), fake)
 
         loss_D_LR.backward()
         optimizer_D_LR.step()

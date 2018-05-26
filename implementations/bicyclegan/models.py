@@ -127,29 +127,41 @@ class Encoder(nn.Module):
 #        Discriminator
 ##############################
 
-class Discriminator(nn.Module):
+class MultiDiscriminator(nn.Module):
     def __init__(self, in_channels=3):
-        super(Discriminator, self).__init__()
+        super(MultiDiscriminator, self).__init__()
 
-        def downsample_block(in_filters, out_filters, normalize):
-            """Returns layers of each downsample block"""
-            layers = [nn.Conv2d(in_filters, out_filters, 4, 2, 1)]
+        def discriminator_block(in_filters, out_filters, normalize=True):
+            """Returns downsampling layers of each discriminator block"""
+            layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
             if normalize:
-                layers.append(nn.InstanceNorm2d(out_filters, affine=True, track_running_stats=True))
+                layers.append(nn.InstanceNorm2d(out_filters))
             layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
-        self.d1 = nn.Sequential(
-            *downsample_block(in_channels, 64, False),
-            *downsample_block(64, 128, True),
-            nn.Conv2d(128, 1, 3, 1, 1)
-        )
-        self.d2 = nn.Sequential(
-            *downsample_block(in_channels, 64, False),
-            *downsample_block(64, 128, True),
-            *downsample_block(128, 256, True),
-            nn.Conv2d(256, 1, 3, 1, 1)
-        )
+        # Extracts three discriminator models
+        self.models = nn.ModuleList()
+        for i in range(3):
+            self.models.add_module('disc_%d' % i,
+                nn.Sequential(
+                    *discriminator_block(in_channels, 64, normalize=False),
+                    *discriminator_block(64, 128),
+                    *discriminator_block(128, 256),
+                    *discriminator_block(256, 512),
+                    nn.Conv2d(512, 1, 3, padding=1)
+                )
+            )
 
-    def forward(self, img):
-        return self.d1(img), self.d2(img)
+        self.downsample = nn.AvgPool2d(in_channels, stride=2, padding=[1, 1], count_include_pad=False)
+
+    def compute_loss(self, x, gt):
+        """Computes the MSE between model output and scalar gt"""
+        loss = sum([torch.mean((out - gt)**2) for out in self.forward(x)])
+        return loss
+
+    def forward(self, x):
+        outputs = []
+        for m in self.models:
+            outputs.append(m(x))
+            x = self.downsample(x)
+        return outputs
