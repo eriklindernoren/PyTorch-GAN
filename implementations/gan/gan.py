@@ -38,13 +38,15 @@ class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
-        def block(in_feat, out_feat):
-            layers = [  nn.Linear(in_feat, out_feat),
-                        nn.LeakyReLU(0.2, inplace=True)]
+        def block(in_feat, out_feat, normalize=True):
+            layers = [nn.Linear(in_feat, out_feat)]
+            if normalize:
+                layers.append(nn.BatchNorm1d(out_feat, 0.8))
+            layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
         self.model = nn.Sequential(
-            *block(opt.latent_dim, 128),
+            *block(opt.latent_dim, 128, normalize=False),
             *block(128, 256),
             *block(256, 512),
             *block(512, 1024),
