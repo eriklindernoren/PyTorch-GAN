@@ -158,6 +158,7 @@ for epoch in range(opt.n_epochs):
                                   create_graph=True,
  				  retain_graph=True,
    				  only_inputs=True)[0]
+        
         fake_grad_norm = fake_grad.view(fake_grad.size(0), -1).pow(2).sum(1)**(p/2)
 
         div_gp = torch.mean(real_grad_norm + fake_grad_norm) * k / 2
