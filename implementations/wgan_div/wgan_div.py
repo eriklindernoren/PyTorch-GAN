@@ -142,9 +142,10 @@ for epoch in range(opt.n_epochs):
         # Fake images
         fake_validity = discriminator(fake_imgs)
 
+        # Compute W-div gradient penalty
         real_grad = autograd.grad(real_validity,
                                   real_imgs,
-                                  torch.ones(real_imgs.size()[0],1),
+                                  torch.ones(real_imgs.size(0),1),
                                   create_graph=True,
 	 		          retain_graph=True,
 				  only_inputs=True)[0]
@@ -153,16 +154,16 @@ for epoch in range(opt.n_epochs):
 
         fake_grad = autograd.grad(fake_validity,
                                   fake_imgs,
-                                  torch.ones(fake_imgs.size()[0],1),
+                                  torch.ones(fake_imgs.size(0),1),
                                   create_graph=True,
  				  retain_graph=True,
    				  only_inputs=True)[0]
         fake_grad_norm = fake_grad.view(fake_grad.size(0), -1).pow(2).sum(1)**(p/2)
 
-        div = torch.mean(real_grad_norm + fake_grad_norm) * k / 2
+        div_gp = torch.mean(real_grad_norm + fake_grad_norm) * k / 2
 
         # Adversarial loss
-        d_loss = -torch.mean(real_validity) + torch.mean(fake_validity) + div
+        d_loss = -torch.mean(real_validity) + torch.mean(fake_validity) + div_gp
 
         d_loss.backward()
         optimizer_D.step()
