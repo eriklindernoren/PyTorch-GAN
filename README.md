@@ -675,5 +675,5 @@ $ python3 wgan_div.py
 ```
 
 <p align="center">
-    <img src="assets/wgan_div.gif" width="240"\>
+    <img src="assets/wgan_div.png" width="240"\>
 </p>
