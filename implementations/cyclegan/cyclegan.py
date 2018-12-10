@@ -33,7 +33,8 @@ parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from whi
 parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
 parser.add_argument('--img_height', type=int, default=256, help='size of image height')
 parser.add_argument('--img_width', type=int, default=256, help='size of image width')
-parser.add_argument('--channels', type=int, default=3, help='number of image channels')
+parser.add_argument('--channels_A', type=int, default=3, help='number of image A channels')
+parser.add_argument('--channels_B', type=int, default=3, help='number of image B channels')
 parser.add_argument('--sample_interval', type=int, default=100, help='interval between sampling images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=-1, help='interval between saving model checkpoints')
 parser.add_argument('--n_residual_blocks', type=int, default=9, help='number of residual blocks in generator')
@@ -55,10 +56,10 @@ cuda = True if torch.cuda.is_available() else False
 patch = (1, opt.img_height // 2**4, opt.img_width // 2**4)
 
 # Initialize generator and discriminator
-G_AB = GeneratorResNet(res_blocks=opt.n_residual_blocks)
-G_BA = GeneratorResNet(res_blocks=opt.n_residual_blocks)
-D_A = Discriminator()
-D_B = Discriminator()
+G_AB = GeneratorResNet(in_channels = channels_A, out_channels = channels_B, res_blocks=opt.n_residual_blocks)
+G_BA = GeneratorResNet(in_channels = channels_B, out_channels = channels_A, res_blocks=opt.n_residual_blocks)
+D_A = Discriminator(in_channels = channels_A)
+D_B = Discriminator(in_channels = channels_B)
 
 if cuda:
     G_AB = G_AB.cuda()
