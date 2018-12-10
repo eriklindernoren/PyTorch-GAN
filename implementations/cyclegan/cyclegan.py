@@ -56,10 +56,10 @@ cuda = True if torch.cuda.is_available() else False
 patch = (1, opt.img_height // 2**4, opt.img_width // 2**4)
 
 # Initialize generator and discriminator
-G_AB = GeneratorResNet(in_channels = channels_A, out_channels = channels_B, res_blocks=opt.n_residual_blocks)
-G_BA = GeneratorResNet(in_channels = channels_B, out_channels = channels_A, res_blocks=opt.n_residual_blocks)
-D_A = Discriminator(in_channels = channels_A)
-D_B = Discriminator(in_channels = channels_B)
+G_AB = GeneratorResNet(in_channels = opt.channels_A, out_channels = opt.channels_B, res_blocks=opt.n_residual_blocks)
+G_BA = GeneratorResNet(in_channels = opt.channels_B, out_channels = opt.channels_A, res_blocks=opt.n_residual_blocks)
+D_A = Discriminator(in_channels = opt.channels_A)
+D_B = Discriminator(in_channels = opt.channels_B)
 
 if cuda:
     G_AB = G_AB.cuda()
