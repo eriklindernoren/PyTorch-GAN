@@ -39,6 +39,7 @@ class Generator(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 class Discriminator(nn.Module):
     def __init__(self, channels=3):
         super(Discriminator, self).__init__()
@@ -53,10 +54,7 @@ class Discriminator(nn.Module):
 
         layers = []
         in_filters = channels
-        for out_filters, stride, normalize in [ (64, 2, False),
-                                                (128, 2, True),
-                                                (256, 2, True),
-                                                (512, 1, True)]:
+        for out_filters, stride, normalize in [(64, 2, False), (128, 2, True), (256, 2, True), (512, 1, True)]:
             layers.extend(discriminator_block(in_filters, out_filters, stride, normalize))
             in_filters = out_filters
 

@@ -4,13 +4,15 @@ import torch
 from torchvision.models import vgg19
 import math
 
+
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    if classname.find("Conv") != -1:
         torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
+    elif classname.find("BatchNorm") != -1:
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
+
 
 class FeatureExtractor(nn.Module):
     def __init__(self):
@@ -25,30 +27,31 @@ class FeatureExtractor(nn.Module):
         out = self.feature_extractor(img)
         return out
 
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_features):
         super(ResidualBlock, self).__init__()
 
-        conv_block = [  nn.Conv2d(in_features, in_features, 3, 1, 1),
-                        nn.BatchNorm2d(in_features),
-                        nn.ReLU(),
-                        nn.Conv2d(in_features, in_features, 3, 1, 1),
-                        nn.BatchNorm2d(in_features)  ]
+        conv_block = [
+            nn.Conv2d(in_features, in_features, 3, 1, 1),
+            nn.BatchNorm2d(in_features),
+            nn.ReLU(),
+            nn.Conv2d(in_features, in_features, 3, 1, 1),
+            nn.BatchNorm2d(in_features),
+        ]
 
         self.conv_block = nn.Sequential(*conv_block)
 
     def forward(self, x):
         return x + self.conv_block(x)
 
+
 class GeneratorResNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, n_residual_blocks=16):
         super(GeneratorResNet, self).__init__()
 
         # First layer
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels, 64, 9, 1, 4),
-            nn.ReLU(inplace=True)
-        )
+        self.conv1 = nn.Sequential(nn.Conv2d(in_channels, 64, 9, 1, 4), nn.ReLU(inplace=True))
 
         # Residual blocks
         res_blocks = []
@@ -62,10 +65,12 @@ class GeneratorResNet(nn.Module):
         # Upsampling layers
         upsampling = []
         for out_features in range(2):
-            upsampling += [ nn.Conv2d(64, 256, 3, 1, 1),
-                            nn.BatchNorm2d(256),
-                            nn.PixelShuffle(upscale_factor=2),
-                            nn.ReLU(inplace=True)]
+            upsampling += [
+                nn.Conv2d(64, 256, 3, 1, 1),
+                nn.BatchNorm2d(256),
+                nn.PixelShuffle(upscale_factor=2),
+                nn.ReLU(inplace=True),
+            ]
         self.upsampling = nn.Sequential(*upsampling)
 
         # Final output layer
@@ -79,6 +84,7 @@ class GeneratorResNet(nn.Module):
         out = self.upsampling(out)
         out = self.conv3(out)
         return out
+
 
 class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
@@ -94,14 +100,16 @@ class Discriminator(nn.Module):
 
         layers = []
         in_filters = in_channels
-        for out_filters, stride, normalize in [ (64, 1, False),
-                                                (64, 2, True),
-                                                (128, 1, True),
-                                                (128, 2, True),
-                                                (256, 1, True),
-                                                (256, 2, True),
-                                                (512, 1, True),
-                                                (512, 2, True),]:
+        for out_filters, stride, normalize in [
+            (64, 1, False),
+            (64, 2, True),
+            (128, 1, True),
+            (128, 2, True),
+            (256, 1, True),
+            (256, 2, True),
+            (512, 1, True),
+            (512, 2, True),
+        ]:
             layers.extend(discriminator_block(in_filters, out_filters, stride, normalize))
             in_filters = out_filters
 
