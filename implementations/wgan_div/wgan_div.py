@@ -102,7 +102,9 @@ dataloader = torch.utils.data.DataLoader(
         "../../data/mnist",
         train=True,
         download=True,
-        transform=transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+        transform=transforms.Compose(
+            [transforms.Resize(opt.img_size), transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
+        ),
     ),
     batch_size=opt.batch_size,
     shuffle=True,
@@ -123,7 +125,7 @@ for epoch in range(opt.n_epochs):
     for i, (imgs, _) in enumerate(dataloader):
 
         # Configure input
-        real_imgs = Variable(imgs.type(Tensor),requires_grad=True)
+        real_imgs = Variable(imgs.type(Tensor), requires_grad=True)
 
         # ---------------------
         #  Train Discriminator
@@ -143,23 +145,17 @@ for epoch in range(opt.n_epochs):
         fake_validity = discriminator(fake_imgs)
 
         # Compute W-div gradient penalty
-        real_grad_out = Variable(Tensor(real_imgs.size(0), 1).fill_(1.0),requires_grad=False)
-        real_grad = autograd.grad(real_validity,
-                                  real_imgs,
-                                  real_grad_out,
-                                  create_graph=True,
-	 		          retain_graph=True,
-				  only_inputs=True)[0]
-        real_grad_norm = real_grad.view(real_grad.size(0),-1).pow(2).sum(1)**(p/2)
+        real_grad_out = Variable(Tensor(real_imgs.size(0), 1).fill_(1.0), requires_grad=False)
+        real_grad = autograd.grad(
+            real_validity, real_imgs, real_grad_out, create_graph=True, retain_graph=True, only_inputs=True
+        )[0]
+        real_grad_norm = real_grad.view(real_grad.size(0), -1).pow(2).sum(1) ** (p / 2)
 
-        fake_grad_out = Variable(Tensor(fake_imgs.size(0), 1).fill_(1.0),requires_grad=False)
-        fake_grad = autograd.grad(fake_validity,
-                                  fake_imgs,
-                                  fake_grad_out,
-                                  create_graph=True,
- 				  retain_graph=True,
-   				  only_inputs=True)[0]
-        fake_grad_norm = fake_grad.view(fake_grad.size(0),-1).pow(2).sum(1)**(p/2)
+        fake_grad_out = Variable(Tensor(fake_imgs.size(0), 1).fill_(1.0), requires_grad=False)
+        fake_grad = autograd.grad(
+            fake_validity, fake_imgs, fake_grad_out, create_graph=True, retain_graph=True, only_inputs=True
+        )[0]
+        fake_grad_norm = fake_grad.view(fake_grad.size(0), -1).pow(2).sum(1) ** (p / 2)
 
         div_gp = torch.mean(real_grad_norm + fake_grad_norm) * k / 2
 
