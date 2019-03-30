@@ -117,7 +117,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Adversarial loss
         loss_GAN = criterion_GAN(discriminator(gen_hr), valid)
 
-        # Content loss (use shallow feature maps during warmup)
+        # Content loss
         gen_features = feature_extractor(gen_hr)
         real_features = feature_extractor(imgs_hr)
         loss_content = criterion_content(gen_features, real_features.detach())
