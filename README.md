@@ -595,8 +595,7 @@ $ python3 srgan.py
     <img src="assets/srgan.png" width="240"\>
 </p>
 <p align="center">
-    Rows from top to bottom: (1) Generated sample by Super-resolution GAN (2) The full <br>
-    resolution image
+    Nearest Neighbor Upsampling | SRGAN
 </p>
 
 ### UNIT
