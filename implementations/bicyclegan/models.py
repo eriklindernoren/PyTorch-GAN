@@ -8,9 +8,9 @@ from torchvision.models import resnet18
 
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    if classname.find("Conv") != -1:
         torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
+    elif classname.find("BatchNorm2d") != -1:
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
 
@@ -18,6 +18,7 @@ def weights_init_normal(m):
 ##############################
 #           U-NET
 ##############################
+
 
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
@@ -33,12 +34,15 @@ class UNetDown(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
-        layers = [  nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
-                    nn.InstanceNorm2d(out_size, affine=True, track_running_stats=True),
-                    nn.ReLU(inplace=True)]
+        layers = [
+            nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
+            nn.InstanceNorm2d(out_size, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+        ]
         if dropout:
             layers.append(nn.Dropout(dropout))
 
@@ -50,6 +54,7 @@ class UNetUp(nn.Module):
 
         return x
 
+
 class Generator(nn.Module):
     def __init__(self, latent_dim, img_shape):
         super(Generator, self).__init__()
@@ -57,7 +62,7 @@ class Generator(nn.Module):
 
         self.fc = nn.Linear(latent_dim, self.h * self.w)
 
-        self.down1 = UNetDown(channels+1, 64, normalize=False)
+        self.down1 = UNetDown(channels + 1, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512)
@@ -72,9 +77,7 @@ class Generator(nn.Module):
         self.up5 = UNetUp(512, 128)
         self.up6 = UNetUp(256, 64)
 
-
-        final = [   nn.ConvTranspose2d(128, channels, 4, stride=2, padding=1),
-                    nn.Tanh() ]
+        final = [nn.ConvTranspose2d(128, channels, 4, stride=2, padding=1), nn.Tanh()]
         self.final = nn.Sequential(*final)
 
     def forward(self, x, z):
@@ -96,9 +99,11 @@ class Generator(nn.Module):
 
         return self.final(u6)
 
+
 ##############################
 #        Encoder
 ##############################
+
 
 class Encoder(nn.Module):
     def __init__(self, latent_dim):
@@ -127,6 +132,7 @@ class Encoder(nn.Module):
 #        Discriminator
 ##############################
 
+
 class MultiDiscriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(MultiDiscriminator, self).__init__()
@@ -142,21 +148,22 @@ class MultiDiscriminator(nn.Module):
         # Extracts three discriminator models
         self.models = nn.ModuleList()
         for i in range(3):
-            self.models.add_module('disc_%d' % i,
+            self.models.add_module(
+                "disc_%d" % i,
                 nn.Sequential(
                     *discriminator_block(in_channels, 64, normalize=False),
                     *discriminator_block(64, 128),
                     *discriminator_block(128, 256),
                     *discriminator_block(256, 512),
                     nn.Conv2d(512, 1, 3, padding=1)
-                )
+                ),
             )
 
         self.downsample = nn.AvgPool2d(in_channels, stride=2, padding=[1, 1], count_include_pad=False)
 
     def compute_loss(self, x, gt):
         """Computes the MSE between model output and scalar gt"""
-        loss = sum([torch.mean((out - gt)**2) for out in self.forward(x)])
+        loss = sum([torch.mean((out - gt) ** 2) for out in self.forward(x)])
         return loss
 
     def forward(self, x):

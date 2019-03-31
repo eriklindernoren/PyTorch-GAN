@@ -4,17 +4,20 @@ import torch
 from torchvision.models import vgg19
 import math
 
+
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    if classname.find("Conv") != -1:
         torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
+    elif classname.find("BatchNorm2d") != -1:
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
+
 
 ##############################
 #           U-NET
 ##############################
+
 
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
@@ -30,12 +33,15 @@ class UNetDown(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
-        layers = [  nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
-                    nn.InstanceNorm2d(out_size, affine=True),
-                    nn.ReLU(inplace=True)]
+        layers = [
+            nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
+            nn.InstanceNorm2d(out_size, affine=True),
+            nn.ReLU(inplace=True),
+        ]
         if dropout:
             layers.append(nn.Dropout(dropout))
 
@@ -46,6 +52,7 @@ class UNetUp(nn.Module):
         x = torch.cat((x, skip_input), 1)
 
         return x
+
 
 class Generator(nn.Module):
     def __init__(self, channels=3):
@@ -66,10 +73,7 @@ class Generator(nn.Module):
         self.up5 = UNetUp(512, 128)
         self.up6 = UNetUp(256, 64)
 
-        self.final = nn.Sequential(
-            nn.ConvTranspose2d(128, channels, 4, stride=2, padding=1),
-            nn.Tanh()
-        )
+        self.final = nn.Sequential(nn.ConvTranspose2d(128, channels, 4, stride=2, padding=1), nn.Tanh())
 
     def forward(self, x):
         # Propogate noise through fc layer and reshape to img shape
@@ -89,9 +93,11 @@ class Generator(nn.Module):
 
         return self.final(u6)
 
+
 ##############################
 #        Discriminator
 ##############################
+
 
 class Discriminator(nn.Module):
     def __init__(self, in_channels=3):

@@ -5,6 +5,7 @@
 .DS_Store
 
 data/*/
+implementations/*/data
 implementations/*/images
 implementations/*/saved_models
 

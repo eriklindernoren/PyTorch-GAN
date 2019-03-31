@@ -6,6 +6,7 @@ import torch
 #           U-NET
 ##############################
 
+
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
         super(UNetDown, self).__init__()
@@ -21,12 +22,15 @@ class UNetDown(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
-        model = [   nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
-                    nn.BatchNorm2d(out_size, 0.8),
-                    nn.ReLU(inplace=True)]
+        model = [
+            nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(out_size, 0.8),
+            nn.ReLU(inplace=True),
+        ]
         if dropout:
             model.append(nn.Dropout(dropout))
 
@@ -35,16 +39,16 @@ class UNetUp(nn.Module):
     def forward(self, x, skip_input):
         x = self.model(x)
         out = torch.cat((x, skip_input), 1)
-        #out = torch.add(x, skip_input)
         return out
 
-class Generator(nn.Module):
-    def __init__(self, channels=3):
-        super(Generator, self).__init__()
 
+class Generator(nn.Module):
+    def __init__(self, input_shape):
+        super(Generator, self).__init__()
+        channels, _, _ = input_shape
         self.down1 = UNetDown(channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
-        self.down3 = UNetDown(128+channels, 256, dropout=0.5)
+        self.down3 = UNetDown(128 + channels, 256, dropout=0.5)
         self.down4 = UNetDown(256, 512, dropout=0.5)
         self.down5 = UNetDown(512, 512, dropout=0.5)
         self.down6 = UNetDown(512, 512, dropout=0.5)
@@ -53,12 +57,9 @@ class Generator(nn.Module):
         self.up2 = UNetUp(1024, 512, dropout=0.5)
         self.up3 = UNetUp(1024, 256, dropout=0.5)
         self.up4 = UNetUp(512, 128)
-        self.up5 = UNetUp(256+channels, 64)
+        self.up5 = UNetUp(256 + channels, 64)
 
-
-        final = [   nn.Upsample(scale_factor=2),
-                    nn.Conv2d(128, channels, 3, 1, 1),
-                    nn.Tanh() ]
+        final = [nn.Upsample(scale_factor=2), nn.Conv2d(128, channels, 3, 1, 1), nn.Tanh()]
         self.final = nn.Sequential(*final)
 
     def forward(self, x, x_lr):
@@ -78,9 +79,15 @@ class Generator(nn.Module):
 
         return self.final(u5)
 
+
 class Discriminator(nn.Module):
-    def __init__(self, channels=3):
+    def __init__(self, input_shape):
         super(Discriminator, self).__init__()
+
+        channels, height, width = input_shape
+        # Calculate output of image discriminator (PatchGAN)
+        patch_h, patch_w = int(height / 2 ** 3), int(width / 2 ** 3)
+        self.output_shape = (1, patch_h, patch_w)
 
         def discriminator_block(in_filters, out_filters, stride, normalize):
             """Returns layers of each discriminator block"""
@@ -92,10 +99,7 @@ class Discriminator(nn.Module):
 
         layers = []
         in_filters = channels
-        for out_filters, stride, normalize in [ (64, 2, False),
-                                                (128, 2, True),
-                                                (256, 2, True),
-                                                (512, 1, True)]:
+        for out_filters, stride, normalize in [(64, 2, False), (128, 2, True), (256, 2, True), (512, 1, True)]:
             layers.extend(discriminator_block(in_filters, out_filters, stride, normalize))
             in_filters = out_filters
 

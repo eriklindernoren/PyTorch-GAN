@@ -2,9 +2,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+
+def weights_init_normal(m):
+    classname = m.__class__.__name__
+    if classname.find("Conv") != -1:
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find("BatchNorm2d") != -1:
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
+
+
 ##############################
 #           U-NET
 ##############################
+
 
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
@@ -20,12 +31,11 @@ class UNetDown(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
-        layers = [  nn.ConvTranspose2d(in_size, out_size, 4, 2, 1),
-                    nn.InstanceNorm2d(out_size),
-                    nn.ReLU(inplace=True)]
+        layers = [nn.ConvTranspose2d(in_size, out_size, 4, 2, 1), nn.InstanceNorm2d(out_size), nn.ReLU(inplace=True)]
         if dropout:
             layers.append(nn.Dropout(dropout))
 
@@ -39,10 +49,10 @@ class UNetUp(nn.Module):
 
 
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3):
+    def __init__(self, input_shape):
         super(GeneratorUNet, self).__init__()
-
-        self.down1 = UNetDown(in_channels, 64, normalize=False)
+        channels, _, _ = input_shape
+        self.down1 = UNetDown(channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256, dropout=0.5)
         self.down4 = UNetDown(256, 512, dropout=0.5)
@@ -55,14 +65,9 @@ class GeneratorUNet(nn.Module):
         self.up4 = UNetUp(512, 128)
         self.up5 = UNetUp(256, 64)
 
-
         self.final = nn.Sequential(
-            nn.Upsample(scale_factor=2),
-            nn.ZeroPad2d((1, 0, 1, 0)),
-            nn.Conv2d(128, out_channels, 4, padding=1),
-            nn.Tanh()
+            nn.Upsample(scale_factor=2), nn.ZeroPad2d((1, 0, 1, 0)), nn.Conv2d(128, channels, 4, padding=1), nn.Tanh()
         )
-
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
@@ -80,13 +85,19 @@ class GeneratorUNet(nn.Module):
 
         return self.final(u5)
 
+
 ##############################
 #        Discriminator
 ##############################
 
+
 class Discriminator(nn.Module):
-    def __init__(self, in_channels=3):
+    def __init__(self, input_shape):
         super(Discriminator, self).__init__()
+
+        channels, height, width = input_shape
+        # Calculate output of image discriminator (PatchGAN)
+        self.output_shape = (1, height // 2 ** 3, width // 2 ** 3)
 
         def discriminator_block(in_filters, out_filters, normalization=True):
             """Returns downsampling layers of each discriminator block"""
@@ -97,7 +108,7 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(in_channels, 64, normalization=False),
+            *discriminator_block(channels, 64, normalization=False),
             *discriminator_block(64, 128),
             *discriminator_block(128, 256),
             nn.ZeroPad2d((1, 0, 1, 0)),

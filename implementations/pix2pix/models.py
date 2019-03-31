@@ -2,17 +2,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    if classname.find("Conv") != -1:
         torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm2d') != -1:
+    elif classname.find("BatchNorm2d") != -1:
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
+
 
 ##############################
 #           U-NET
 ##############################
+
 
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
@@ -28,12 +31,15 @@ class UNetDown(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
-        layers = [  nn.ConvTranspose2d(in_size, out_size, 4, 2, 1, bias=False),
-                    nn.InstanceNorm2d(out_size),
-                    nn.ReLU(inplace=True)]
+        layers = [
+            nn.ConvTranspose2d(in_size, out_size, 4, 2, 1, bias=False),
+            nn.InstanceNorm2d(out_size),
+            nn.ReLU(inplace=True),
+        ]
         if dropout:
             layers.append(nn.Dropout(dropout))
 
@@ -44,6 +50,7 @@ class UNetUp(nn.Module):
         x = torch.cat((x, skip_input), 1)
 
         return x
+
 
 class GeneratorUNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3):
@@ -66,14 +73,12 @@ class GeneratorUNet(nn.Module):
         self.up6 = UNetUp(512, 128)
         self.up7 = UNetUp(256, 64)
 
-
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.ZeroPad2d((1, 0, 1, 0)),
             nn.Conv2d(128, out_channels, 4, padding=1),
-            nn.Tanh()
+            nn.Tanh(),
         )
-
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
@@ -100,6 +105,7 @@ class GeneratorUNet(nn.Module):
 #        Discriminator
 ##############################
 
+
 class Discriminator(nn.Module):
     def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
@@ -113,7 +119,7 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(in_channels*2, 64, normalization=False),
+            *discriminator_block(in_channels * 2, 64, normalization=False),
             *discriminator_block(64, 128),
             *discriminator_block(128, 256),
             *discriminator_block(256, 512),

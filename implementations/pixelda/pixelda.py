@@ -17,37 +17,39 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-os.makedirs('images', exist_ok=True)
+os.makedirs("images", exist_ok=True)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--n_epochs', type=int, default=200, help='number of epochs of training')
-parser.add_argument('--batch_size', type=int, default=64, help='size of the batches')
-parser.add_argument('--lr', type=float, default=0.0002, help='adam: learning rate')
-parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
-parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
-parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads to use during batch generation')
-parser.add_argument('--n_residual_blocks', type=int, default=6, help='number of residual blocks in generator')
-parser.add_argument('--latent_dim', type=int, default=10, help='dimensionality of the noise input')
-parser.add_argument('--img_size', type=int, default=32, help='size of each image dimension')
-parser.add_argument('--channels', type=int, default=3, help='number of image channels')
-parser.add_argument('--n_classes', type=int, default=10, help='number of classes in the dataset')
-parser.add_argument('--sample_interval', type=int, default=300, help='interval betwen image samples')
+parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
+parser.add_argument("--batch_size", type=int, default=64, help="size of the batches")
+parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
+parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
+parser.add_argument("--b2", type=float, default=0.999, help="adam: decay of first order momentum of gradient")
+parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
+parser.add_argument("--n_residual_blocks", type=int, default=6, help="number of residual blocks in generator")
+parser.add_argument("--latent_dim", type=int, default=10, help="dimensionality of the noise input")
+parser.add_argument("--img_size", type=int, default=32, help="size of each image dimension")
+parser.add_argument("--channels", type=int, default=3, help="number of image channels")
+parser.add_argument("--n_classes", type=int, default=10, help="number of classes in the dataset")
+parser.add_argument("--sample_interval", type=int, default=300, help="interval betwen image samples")
 opt = parser.parse_args()
 print(opt)
 
 # Calculate output of image discriminator (PatchGAN)
-patch = int(opt.img_size / 2**4)
+patch = int(opt.img_size / 2 ** 4)
 patch = (1, patch, patch)
 
 cuda = True if torch.cuda.is_available() else False
 
+
 def weights_init_normal(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    if classname.find("Conv") != -1:
         torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
+    elif classname.find("BatchNorm") != -1:
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
+
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_features=64, out_features=64):
@@ -58,20 +60,21 @@ class ResidualBlock(nn.Module):
             nn.BatchNorm2d(in_features),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_features, in_features, 3, 1, 1),
-            nn.BatchNorm2d(in_features)
+            nn.BatchNorm2d(in_features),
         )
 
     def forward(self, x):
         return x + self.block(x)
+
 
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
         # Fully-connected layer which constructs image channel shaped output from noise
-        self.fc = nn.Linear(opt.latent_dim, opt.channels*opt.img_size**2)
+        self.fc = nn.Linear(opt.latent_dim, opt.channels * opt.img_size ** 2)
 
-        self.l1 = nn.Sequential(nn.Conv2d(opt.channels*2, 64, 3, 1, 1), nn.ReLU(inplace=True))
+        self.l1 = nn.Sequential(nn.Conv2d(opt.channels * 2, 64, 3, 1, 1), nn.ReLU(inplace=True))
 
         resblocks = []
         for _ in range(opt.n_residual_blocks):
@@ -79,7 +82,6 @@ class Generator(nn.Module):
         self.resblocks = nn.Sequential(*resblocks)
 
         self.l2 = nn.Sequential(nn.Conv2d(64, opt.channels, 3, 1, 1), nn.Tanh())
-
 
     def forward(self, img, z):
         gen_input = torch.cat((img, self.fc(z).view(*img.shape)), 1)
@@ -89,14 +91,14 @@ class Generator(nn.Module):
 
         return img_
 
+
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
         def block(in_features, out_features, normalization=True):
             """Discriminator block"""
-            layers = [  nn.Conv2d(in_features, out_features, 3, stride=2, padding=1),
-                        nn.LeakyReLU(0.2, inplace=True) ]
+            layers = [nn.Conv2d(in_features, out_features, 3, stride=2, padding=1), nn.LeakyReLU(0.2, inplace=True)]
             if normalization:
                 layers.append(nn.InstanceNorm2d(out_features))
             return layers
@@ -121,24 +123,17 @@ class Classifier(nn.Module):
 
         def block(in_features, out_features, normalization=True):
             """Classifier block"""
-            layers = [  nn.Conv2d(in_features, out_features, 3, stride=2, padding=1),
-                        nn.LeakyReLU(0.2, inplace=True) ]
+            layers = [nn.Conv2d(in_features, out_features, 3, stride=2, padding=1), nn.LeakyReLU(0.2, inplace=True)]
             if normalization:
                 layers.append(nn.InstanceNorm2d(out_features))
             return layers
 
         self.model = nn.Sequential(
-            *block(opt.channels, 64, normalization=False),
-            *block(64, 128),
-            *block(128, 256),
-            *block(256, 512)
+            *block(opt.channels, 64, normalization=False), *block(64, 128), *block(128, 256), *block(256, 512)
         )
 
-        input_size = opt.img_size // 2**4
-        self.output_layer = nn.Sequential(
-            nn.Linear(512*input_size**2, opt.n_classes),
-            nn.Softmax()
-        )
+        input_size = opt.img_size // 2 ** 4
+        self.output_layer = nn.Sequential(nn.Linear(512 * input_size ** 2, opt.n_classes), nn.Softmax())
 
     def forward(self, img):
         feature_repr = self.model(img)
@@ -146,12 +141,13 @@ class Classifier(nn.Module):
         label = self.output_layer(feature_repr)
         return label
 
+
 # Loss function
 adversarial_loss = torch.nn.MSELoss()
 task_loss = torch.nn.CrossEntropyLoss()
 
 # Loss weights
-lambda_adv =  1
+lambda_adv = 1
 lambda_task = 0.1
 
 # Initialize generator and discriminator
@@ -172,29 +168,42 @@ discriminator.apply(weights_init_normal)
 classifier.apply(weights_init_normal)
 
 # Configure data loader
-os.makedirs('../../data/mnist', exist_ok=True)
+os.makedirs("../../data/mnist", exist_ok=True)
 dataloader_A = torch.utils.data.DataLoader(
-    datasets.MNIST('../../data/mnist', train=True, download=True,
-                   transform=transforms.Compose([
-                       transforms.Resize(opt.img_size),
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-                   ])),
-    batch_size=opt.batch_size, shuffle=True)
+    datasets.MNIST(
+        "../../data/mnist",
+        train=True,
+        download=True,
+        transform=transforms.Compose(
+            [transforms.Resize(opt.img_size), transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
+        ),
+    ),
+    batch_size=opt.batch_size,
+    shuffle=True,
+)
 
-os.makedirs('../../data/mnistm', exist_ok=True)
+os.makedirs("../../data/mnistm", exist_ok=True)
 dataloader_B = torch.utils.data.DataLoader(
-    MNISTM('../../data/mnistm', train=True, download=True,
-                   transform=transforms.Compose([
-                       transforms.Resize(opt.img_size),
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-                   ])),
-    batch_size=opt.batch_size, shuffle=True)
+    MNISTM(
+        "../../data/mnistm",
+        train=True,
+        download=True,
+        transform=transforms.Compose(
+            [
+                transforms.Resize(opt.img_size),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        ),
+    ),
+    batch_size=opt.batch_size,
+    shuffle=True,
+)
 
 # Optimizers
-optimizer_G = torch.optim.Adam( itertools.chain(generator.parameters(), classifier.parameters()),
-                                lr=opt.lr, betas=(opt.b1, opt.b2))
+optimizer_G = torch.optim.Adam(
+    itertools.chain(generator.parameters(), classifier.parameters()), lr=opt.lr, betas=(opt.b1, opt.b2)
+)
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
@@ -218,9 +227,9 @@ for epoch in range(opt.n_epochs):
         fake = Variable(FloatTensor(batch_size, *patch).fill_(0.0), requires_grad=False)
 
         # Configure input
-        imgs_A      = Variable(imgs_A.type(FloatTensor).expand(batch_size, 3, opt.img_size, opt.img_size))
-        labels_A    = Variable(labels_A.type(LongTensor))
-        imgs_B      = Variable(imgs_B.type(FloatTensor))
+        imgs_A = Variable(imgs_A.type(FloatTensor).expand(batch_size, 3, opt.img_size, opt.img_size))
+        labels_A = Variable(labels_A.type(LongTensor))
+        imgs_B = Variable(imgs_B.type(FloatTensor))
 
         # -----------------
         #  Train Generator
@@ -238,12 +247,10 @@ for epoch in range(opt.n_epochs):
         label_pred = classifier(fake_B)
 
         # Calculate the task loss
-        task_loss_ =    (task_loss(label_pred, labels_A) + \
-                        task_loss(classifier(imgs_A), labels_A)) / 2
+        task_loss_ = (task_loss(label_pred, labels_A) + task_loss(classifier(imgs_A), labels_A)) / 2
 
         # Loss measures generator's ability to fool the discriminator
-        g_loss =    lambda_adv * adversarial_loss(discriminator(fake_B), valid) + \
-                    lambda_task * task_loss_
+        g_loss = lambda_adv * adversarial_loss(discriminator(fake_B), valid) + lambda_task * task_loss_
 
         g_loss.backward()
         optimizer_G.step()
@@ -279,14 +286,23 @@ for epoch in range(opt.n_epochs):
         if len(target_performance) > 100:
             target_performance.pop(0)
 
-        print ("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [CLF acc: %3d%% (%3d%%), target_acc: %3d%% (%3d%%)]" %
-                                                            (epoch, opt.n_epochs,
-                                                            i, len(dataloader_A),
-                                                            d_loss.item(), g_loss.item(),
-                                                            100*acc, 100*np.mean(task_performance),
-                                                            100*target_acc, 100*np.mean(target_performance)))
+        print(
+            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f] [CLF acc: %3d%% (%3d%%), target_acc: %3d%% (%3d%%)]"
+            % (
+                epoch,
+                opt.n_epochs,
+                i,
+                len(dataloader_A),
+                d_loss.item(),
+                g_loss.item(),
+                100 * acc,
+                100 * np.mean(task_performance),
+                100 * target_acc,
+                100 * np.mean(target_performance),
+            )
+        )
 
         batches_done = len(dataloader_A) * epoch + i
         if batches_done % opt.sample_interval == 0:
             sample = torch.cat((imgs_A.data[:5], fake_B.data[:5], imgs_B.data[:5]), -2)
-            save_image(sample, 'images/%d.png' % batches_done, nrow=int(math.sqrt(batch_size)), normalize=True)
+            save_image(sample, "images/%d.png" % batches_done, nrow=int(math.sqrt(batch_size)), normalize=True)
