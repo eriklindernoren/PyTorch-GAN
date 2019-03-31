@@ -148,7 +148,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         #  Log Progress
         # --------------
 
-        print(
+        sys.stdout.write(
             "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
             % (epoch, opt.n_epochs, i, len(dataloader), loss_D.item(), loss_G.item())
         )

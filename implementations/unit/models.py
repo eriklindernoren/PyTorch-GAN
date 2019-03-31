@@ -128,8 +128,11 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels=3):
+    def __init__(self, input_shape):
         super(Discriminator, self).__init__()
+        channels, height, width = input_shape
+        # Calculate output of image discriminator (PatchGAN)
+        self.output_shape = (1, height // 2 ** 4, width // 2 ** 4)
 
         def discriminator_block(in_filters, out_filters, normalize=True):
             """Returns downsampling layers of each discriminator block"""
@@ -140,7 +143,7 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(in_channels, 64, normalize=False),
+            *discriminator_block(channels, 64, normalize=False),
             *discriminator_block(64, 128),
             *discriminator_block(128, 256),
             *discriminator_block(256, 512),

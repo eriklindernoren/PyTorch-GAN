@@ -93,7 +93,6 @@ class Discriminator(nn.Module):
 
 # Loss functions
 adversarial_loss = torch.nn.MSELoss()
-auxiliary_loss = torch.nn.CrossEntropyLoss()
 
 # Initialize generator and discriminator
 generator = Generator()
@@ -103,7 +102,6 @@ if cuda:
     generator.cuda()
     discriminator.cuda()
     adversarial_loss.cuda()
-    auxiliary_loss.cuda()
 
 # Configure data loader
 os.makedirs("../../data/mnist", exist_ok=True)

@@ -46,13 +46,13 @@ os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
 
 cuda = True if torch.cuda.is_available() else False
 
-img_shape = (opt.channels, opt.img_height, opt.img_width)
+input_shape = (opt.channels, opt.img_height, opt.img_width)
 
 # Loss functions
 mae_loss = torch.nn.L1Loss()
 
 # Initialize generator, encoder and discriminators
-generator = Generator(opt.latent_dim, img_shape)
+generator = Generator(opt.latent_dim, input_shape)
 encoder = Encoder(opt.latent_dim)
 D_VAE = MultiDiscriminator()
 D_LR = MultiDiscriminator()

@@ -34,9 +34,7 @@ parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads 
 parser.add_argument("--img_height", type=int, default=256, help="size of image height")
 parser.add_argument("--img_width", type=int, default=256, help="size of image width")
 parser.add_argument("--channels", type=int, default=3, help="number of image channels")
-parser.add_argument(
-    "--sample_interval", type=int, default=100, help="interval between sampling images from generators"
-)
+parser.add_argument("--sample_interval", type=int, default=100, help="interval between saving generator samples")
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between saving model checkpoints")
 parser.add_argument("--n_downsample", type=int, default=2, help="number downsampling layers in encoder")
 parser.add_argument("--dim", type=int, default=64, help="number of filters in first encoder layer")
@@ -53,8 +51,7 @@ os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
 criterion_GAN = torch.nn.MSELoss()
 criterion_pixel = torch.nn.L1Loss()
 
-# Calculate output of image discriminator (PatchGAN)
-patch = (1, opt.img_height // 2 ** 4, opt.img_width // 2 ** 4)
+input_shape = (opt.channels, opt.img_height, opt.img_width)
 
 # Dimensionality (channel-wise) of image embedding
 shared_dim = opt.dim * 2 ** opt.n_downsample
@@ -66,8 +63,8 @@ E2 = Encoder(dim=opt.dim, n_downsample=opt.n_downsample, shared_block=shared_E)
 shared_G = ResidualBlock(features=shared_dim)
 G1 = Generator(dim=opt.dim, n_upsample=opt.n_downsample, shared_block=shared_G)
 G2 = Generator(dim=opt.dim, n_upsample=opt.n_downsample, shared_block=shared_G)
-D1 = Discriminator()
-D2 = Discriminator()
+D1 = Discriminator(input_shape)
+D2 = Discriminator(input_shape)
 
 if cuda:
     E1 = E1.cuda()
@@ -182,8 +179,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         X2 = Variable(batch["B"].type(Tensor))
 
         # Adversarial ground truths
-        valid = Variable(Tensor(np.ones((X1.size(0), *patch))), requires_grad=False)
-        fake = Variable(Tensor(np.zeros((X1.size(0), *patch))), requires_grad=False)
+        valid = Variable(Tensor(np.ones((X1.size(0), *D1.output_shape))), requires_grad=False)
+        fake = Variable(Tensor(np.zeros((X1.size(0), *D1.output_shape))), requires_grad=False)
 
         # -------------------------------
         #  Train Encoders and Generators

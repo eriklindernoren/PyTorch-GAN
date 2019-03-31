@@ -7,7 +7,7 @@ import datetime
 import time
 
 import torchvision.transforms as transforms
-from torchvision.utils import save_image
+from torchvision.utils import save_image, make_grid
 
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -34,11 +34,11 @@ parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads 
 parser.add_argument("--img_height", type=int, default=256, help="size of image height")
 parser.add_argument("--img_width", type=int, default=256, help="size of image width")
 parser.add_argument("--channels", type=int, default=3, help="number of image channels")
-parser.add_argument(
-    "--sample_interval", type=int, default=100, help="interval between sampling images from generators"
-)
+parser.add_argument("--sample_interval", type=int, default=100, help="interval between saving generator outputs")
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between saving model checkpoints")
 parser.add_argument("--n_residual_blocks", type=int, default=9, help="number of residual blocks in generator")
+parser.add_argument("--lambda_cyc", type=float, default=10.0, help="cycle loss weight")
+parser.add_argument("--lambda_id", type=float, default=5.0, help="identity loss weight")
 opt = parser.parse_args()
 print(opt)
 
@@ -51,16 +51,15 @@ criterion_GAN = torch.nn.MSELoss()
 criterion_cycle = torch.nn.L1Loss()
 criterion_identity = torch.nn.L1Loss()
 
-cuda = True if torch.cuda.is_available() else False
+cuda = torch.cuda.is_available()
 
-# Calculate output of image discriminator (PatchGAN)
-patch = (1, opt.img_height // 2 ** 4, opt.img_width // 2 ** 4)
+input_shape = (opt.channels, opt.img_height, opt.img_width)
 
 # Initialize generator and discriminator
-G_AB = GeneratorResNet(res_blocks=opt.n_residual_blocks)
-G_BA = GeneratorResNet(res_blocks=opt.n_residual_blocks)
-D_A = Discriminator()
-D_B = Discriminator()
+G_AB = GeneratorResNet(input_shape, opt.n_residual_blocks)
+G_BA = GeneratorResNet(input_shape, opt.n_residual_blocks)
+D_A = Discriminator(input_shape)
+D_B = Discriminator(input_shape)
 
 if cuda:
     G_AB = G_AB.cuda()
@@ -83,10 +82,6 @@ else:
     G_BA.apply(weights_init_normal)
     D_A.apply(weights_init_normal)
     D_B.apply(weights_init_normal)
-
-# Loss weights
-lambda_cyc = 10
-lambda_id = 0.5 * lambda_cyc
 
 # Optimizers
 optimizer_G = torch.optim.Adam(
@@ -140,12 +135,20 @@ val_dataloader = DataLoader(
 def sample_images(batches_done):
     """Saves a generated sample from the test set"""
     imgs = next(iter(val_dataloader))
+    G_AB.eval()
+    G_BA.eval()
     real_A = Variable(imgs["A"].type(Tensor))
     fake_B = G_AB(real_A)
     real_B = Variable(imgs["B"].type(Tensor))
     fake_A = G_BA(real_B)
-    img_sample = torch.cat((real_A.data, fake_B.data, real_B.data, fake_A.data), 0)
-    save_image(img_sample, "images/%s/%s.png" % (opt.dataset_name, batches_done), nrow=5, normalize=True)
+    # Arange images along x-axis
+    real_A = make_grid(real_A, nrow=5, normalize=True)
+    real_B = make_grid(real_B, nrow=5, normalize=True)
+    fake_A = make_grid(fake_A, nrow=5, normalize=True)
+    fake_B = make_grid(fake_B, nrow=5, normalize=True)
+    # Arange images along y-axis
+    image_grid = torch.cat((real_A, fake_B, real_B, fake_A), 1)
+    save_image(image_grid, "images/%s/%s.png" % (opt.dataset_name, batches_done), normalize=False)
 
 
 # ----------
@@ -161,12 +164,15 @@ for epoch in range(opt.epoch, opt.n_epochs):
         real_B = Variable(batch["B"].type(Tensor))
 
         # Adversarial ground truths
-        valid = Variable(Tensor(np.ones((real_A.size(0), *patch))), requires_grad=False)
-        fake = Variable(Tensor(np.zeros((real_A.size(0), *patch))), requires_grad=False)
+        valid = Variable(Tensor(np.ones((real_A.size(0), *D_A.output_shape))), requires_grad=False)
+        fake = Variable(Tensor(np.zeros((real_A.size(0), *D_A.output_shape))), requires_grad=False)
 
         # ------------------
         #  Train Generators
         # ------------------
+
+        G_AB.train()
+        G_BA.train()
 
         optimizer_G.zero_grad()
 
@@ -193,7 +199,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
 
         # Total loss
-        loss_G = loss_GAN + lambda_cyc * loss_cycle + lambda_id * loss_identity
+        loss_G = loss_GAN + opt.lambda_cyc * loss_cycle + opt.lambda_id * loss_identity
 
         loss_G.backward()
         optimizer_G.step()

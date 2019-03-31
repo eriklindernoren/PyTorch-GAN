@@ -50,9 +50,7 @@ parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads 
 parser.add_argument("--img_height", type=int, default=128, help="size of image height")
 parser.add_argument("--img_width", type=int, default=128, help="size of image width")
 parser.add_argument("--channels", type=int, default=3, help="number of image channels")
-parser.add_argument(
-    "--sample_interval", type=int, default=400, help="interval between sampling of images from generators"
-)
+parser.add_argument("--sample_interval", type=int, default=400, help="interval between saving generator samples")
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
 parser.add_argument("--residual_blocks", type=int, default=6, help="number of residual blocks in generator")
 parser.add_argument(
@@ -69,7 +67,7 @@ print(opt)
 c_dim = len(opt.selected_attrs)
 img_shape = (opt.channels, opt.img_height, opt.img_width)
 
-cuda = True if torch.cuda.is_available() else False
+cuda = torch.cuda.is_available()
 
 # Loss functions
 criterion_cycle = torch.nn.L1Loss()
