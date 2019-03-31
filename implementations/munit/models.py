@@ -246,7 +246,7 @@ class ResidualBlock(nn.Module):
 
         norm_layer = AdaptiveInstanceNorm2d if norm == "adain" else nn.InstanceNorm2d
 
-        conv_block = [
+        self.block = nn.Sequential(
             nn.ReflectionPad2d(1),
             nn.Conv2d(features, features, 3),
             norm_layer(features),
@@ -254,12 +254,10 @@ class ResidualBlock(nn.Module):
             nn.ReflectionPad2d(1),
             nn.Conv2d(features, features, 3),
             norm_layer(features),
-        ]
-
-        self.conv_block = nn.Sequential(*conv_block)
+        )
 
     def forward(self, x):
-        return x + self.conv_block(x)
+        return x + self.block(x)
 
 
 ##############################

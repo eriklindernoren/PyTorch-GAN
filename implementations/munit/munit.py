@@ -144,8 +144,8 @@ def sample_images(batches_done):
         # Create copies of image
         X1 = img1.unsqueeze(0).repeat(opt.style_dim, 1, 1, 1)
         X1 = Variable(X1.type(Tensor))
-        # Get interpolated style codes
-        s_code = np.repeat(np.linspace(-1, 1, opt.style_dim)[:, np.newaxis], opt.style_dim, 1)
+        # Get random style codes
+        s_code = np.random.uniform(-1, 1, (opt.style_dim, opt.style_dim))
         s_code = Variable(Tensor(s_code))
         # Generate samples
         c_code_1, _ = Enc1(X1)
@@ -207,8 +207,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_GAN_2 = lambda_gan * D2.compute_loss(X12, valid)
         loss_ID_1 = lambda_id * criterion_recon(X11, X1)
         loss_ID_2 = lambda_id * criterion_recon(X22, X2)
-        loss_s_1 = lambda_style * criterion_recon(s_code_12, style_1)
-        loss_s_2 = lambda_style * criterion_recon(s_code_21, style_2)
+        loss_s_1 = lambda_style * criterion_recon(s_code_21, style_1)
+        loss_s_2 = lambda_style * criterion_recon(s_code_12, style_2)
         loss_c_1 = lambda_cont * criterion_recon(c_code_12, c_code_1.detach())
         loss_c_2 = lambda_cont * criterion_recon(c_code_21, c_code_2.detach())
         loss_cyc_1 = lambda_cyc * criterion_recon(X121, X1) if lambda_cyc > 0 else 0
