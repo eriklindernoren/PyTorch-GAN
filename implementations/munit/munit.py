@@ -203,16 +203,16 @@ for epoch in range(opt.epoch, opt.n_epochs):
         X212 = Dec2(c_code_21, s_code_2) if lambda_cyc > 0 else 0
 
         # Losses
-        loss_GAN_1 = lambda_gan * D1.compute_loss(X21, valid)
-        loss_GAN_2 = lambda_gan * D2.compute_loss(X12, valid)
-        loss_ID_1 = lambda_id * criterion_recon(X11, X1)
-        loss_ID_2 = lambda_id * criterion_recon(X22, X2)
-        loss_s_1 = lambda_style * criterion_recon(s_code_12, style_1)
-        loss_s_2 = lambda_style * criterion_recon(s_code_21, style_2)
-        loss_c_1 = lambda_cont * criterion_recon(c_code_12, c_code_1.detach())
-        loss_c_2 = lambda_cont * criterion_recon(c_code_21, c_code_2.detach())
-        loss_cyc_1 = lambda_cyc * criterion_recon(X121, X1) if lambda_cyc > 0 else 0
-        loss_cyc_2 = lambda_cyc * criterion_recon(X212, X2) if lambda_cyc > 0 else 0
+        loss_GAN_1  = lambda_gan    * D1.compute_loss(X21, valid)
+        loss_GAN_2  = lambda_gan    * D2.compute_loss(X12, valid)
+        loss_ID_1   = lambda_id     * criterion_recon(X11, X1)
+        loss_ID_2   = lambda_id     * criterion_recon(X22, X2)
+        loss_s_1    = lambda_style  * criterion_recon(s_code_12, style_2)
+        loss_s_2    = lambda_style  * criterion_recon(s_code_21, style_1)
+        loss_c_1    = lambda_cont   * criterion_recon(c_code_12, c_code_1.detach())
+        loss_c_2    = lambda_cont   * criterion_recon(c_code_21, c_code_2.detach())
+        loss_cyc_1  = lambda_cyc    * criterion_recon(X121, X1) if lambda_cyc > 0 else 0
+        loss_cyc_2  = lambda_cyc    * criterion_recon(X212, X2) if lambda_cyc > 0 else 0
 
         # Total loss
         loss_G = (
