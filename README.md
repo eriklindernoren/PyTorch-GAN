@@ -592,7 +592,7 @@ $ python3 srgan.py
 ```
 
 <p align="center">
-    <img src="assets/superresgan.png" width="240"\>
+    <img src="assets/superresgan.png" width="320"\>
 </p>
 <p align="center">
     Nearest Neighbor Upsampling | SRGAN
