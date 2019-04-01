@@ -224,7 +224,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         optimizer_D_LR.zero_grad()
 
-        loss_D_LR = D_VAE.compute_loss(real_B, valid) + D_VAE.compute_loss(_fake_B.detach(), fake)
+        loss_D_LR = D_LR.compute_loss(real_B, valid) + D_LR.compute_loss(_fake_B.detach(), fake)
 
         loss_D_LR.backward()
         optimizer_D_LR.step()
