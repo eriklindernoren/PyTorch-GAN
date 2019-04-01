@@ -448,6 +448,13 @@ $ cd ../implementations/munit/
 $ python3 munit.py --dataset_name edges2shoes
 ```
 
+<p align="center">
+    <img src="assets/munit.png" width="480"\>
+</p>
+<p align="center">
+    Results by varying the style code.
+</p> 
+
 ### Pix2Pix
 _Unpaired Image-to-Image Translation with Conditional Adversarial Networks_
 
