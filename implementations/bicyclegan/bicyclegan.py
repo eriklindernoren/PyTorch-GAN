@@ -8,7 +8,7 @@ import time
 import sys
 
 import torchvision.transforms as transforms
-from torchvision.utils import save_image
+from torchvision.utils import save_image, make_grid
 
 from torch.utils.data import DataLoader
 from torchvision import datasets
@@ -24,7 +24,7 @@ import torch
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
 parser.add_argument("--n_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--dataset_name", type=str, default="edges2shoes", help="name of the dataset")
+parser.add_argument("--dataset_name", type=str, default="cityscapes", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.0002, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
@@ -34,10 +34,11 @@ parser.add_argument("--img_height", type=int, default=128, help="size of image h
 parser.add_argument("--img_width", type=int, default=128, help="size of image width")
 parser.add_argument("--channels", type=int, default=3, help="number of image channels")
 parser.add_argument("--latent_dim", type=int, default=8, help="number of latent codes")
-parser.add_argument(
-    "--sample_interval", type=int, default=400, help="interval between sampling of images from generators"
-)
+parser.add_argument("--sample_interval", type=int, default=400, help="interval between saving generator samples")
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
+parser.add_argument("--lambda_pixel", type=float, default=10, help="pixelwise loss weight")
+parser.add_argument("--lambda_latent", type=float, default=0.5, help="latent loss weight")
+parser.add_argument("--lambda_kl", type=float, default=0.01, help="kullback-leibler loss weight")
 opt = parser.parse_args()
 print(opt)
 
@@ -53,9 +54,9 @@ mae_loss = torch.nn.L1Loss()
 
 # Initialize generator, encoder and discriminators
 generator = Generator(opt.latent_dim, input_shape)
-encoder = Encoder(opt.latent_dim)
-D_VAE = MultiDiscriminator()
-D_LR = MultiDiscriminator()
+encoder = Encoder(opt.latent_dim, input_shape)
+D_VAE = MultiDiscriminator(input_shape)
+D_LR = MultiDiscriminator(input_shape)
 
 if cuda:
     generator = generator.cuda()
@@ -76,11 +77,6 @@ else:
     D_VAE.apply(weights_init_normal)
     D_LR.apply(weights_init_normal)
 
-# Loss weights
-lambda_pixel = 10
-lambda_latent = 0.5
-lambda_kl = 0.01
-
 # Optimizers
 optimizer_E = torch.optim.Adam(encoder.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
@@ -89,20 +85,14 @@ optimizer_D_LR = torch.optim.Adam(D_LR.parameters(), lr=opt.lr, betas=(opt.b1, o
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 
-# Dataset loader
-transforms_ = [
-    transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-]
 dataloader = DataLoader(
-    ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
+    ImageDataset("../../data/%s" % opt.dataset_name, input_shape),
     batch_size=opt.batch_size,
     shuffle=True,
     num_workers=opt.n_cpu,
 )
 val_dataloader = DataLoader(
-    ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, mode="val"),
+    ImageDataset("../../data/%s" % opt.dataset_name, input_shape, mode="val"),
     batch_size=8,
     shuffle=True,
     num_workers=1,
@@ -111,24 +101,25 @@ val_dataloader = DataLoader(
 
 def sample_images(batches_done):
     """Saves a generated sample from the validation set"""
+    generator.eval()
     imgs = next(iter(val_dataloader))
     img_samples = None
     for img_A, img_B in zip(imgs["A"], imgs["B"]):
-        # Repeat input image by number of channels
-        real_A = img_A.view(1, *img_A.shape).repeat(8, 1, 1, 1)
+        # Repeat input image by number of desired columns
+        real_A = img_A.view(1, *img_A.shape).repeat(opt.latent_dim, 1, 1, 1)
         real_A = Variable(real_A.type(Tensor))
-        # Get interpolated noise [-1, 1]
-        sampled_z = np.repeat(np.linspace(-1, 1, 8)[:, np.newaxis], opt.latent_dim, 1)
-        sampled_z = Variable(Tensor(sampled_z))
-        # Generator samples
+        # Sample latent representations
+        sampled_z = Variable(Tensor(np.random.normal(0, 1, (opt.latent_dim, opt.latent_dim))))
+        # Generate samples
         fake_B = generator(real_A, sampled_z)
         # Concatenate samples horisontally
         fake_B = torch.cat([x for x in fake_B.data.cpu()], -1)
         img_sample = torch.cat((img_A, fake_B), -1)
         img_sample = img_sample.view(1, *img_sample.shape)
-        # Cocatenate with previous samples vertically
+        # Concatenate with previous samples vertically
         img_samples = img_sample if img_samples is None else torch.cat((img_samples, img_sample), -2)
-    save_image(img_samples, "images/%s/%s.png" % (opt.dataset_name, batches_done), nrow=5, normalize=True)
+    save_image(img_samples, "images/%s/%s.png" % (opt.dataset_name, batches_done), nrow=8, normalize=True)
+    generator.train()
 
 
 def reparameterization(mu, logvar):
@@ -173,7 +164,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Pixelwise loss of translated image by VAE
         loss_pixel = mae_loss(fake_B, real_B)
         # Kullback-Leibler divergence of encoded B
-        loss_kl = torch.sum(0.5 * (mu ** 2 + torch.exp(logvar) - logvar - 1))
+        loss_kl = 0.5 * torch.sum(torch.exp(logvar) + mu ** 2 - logvar - 1)
         # Adversarial loss
         loss_VAE_GAN = D_VAE.compute_loss(fake_B, valid)
 
@@ -191,7 +182,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Total Loss (Generator + Encoder)
         # ----------------------------------
 
-        loss_GE = loss_VAE_GAN + loss_LR_GAN + lambda_pixel * loss_pixel + lambda_kl * loss_kl
+        loss_GE = loss_VAE_GAN + loss_LR_GAN + opt.lambda_pixel * loss_pixel + opt.lambda_kl * loss_kl
 
         loss_GE.backward(retain_graph=True)
         optimizer_E.step()
@@ -202,7 +193,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Latent L1 loss
         _mu, _ = encoder(_fake_B)
-        loss_latent = lambda_latent * mae_loss(_mu, sampled_z)
+        loss_latent = opt.lambda_latent * mae_loss(_mu, sampled_z)
 
         loss_latent.backward()
         optimizer_G.step()
@@ -241,7 +232,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Print log
         sys.stdout.write(
-            "\r[Epoch %d/%d] [Batch %d/%d] [D VAE_loss: %f, LR_loss: %f] [G loss: %f, pixel: %f, latent: %f] ETA: %s"
+            "\r[Epoch %d/%d] [Batch %d/%d] [D VAE_loss: %f, LR_loss: %f] [G loss: %f, pixel: %f, kl: %f, latent: %f] ETA: %s"
             % (
                 epoch,
                 opt.n_epochs,
@@ -251,6 +242,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
                 loss_D_LR.item(),
                 loss_GE.item(),
                 loss_pixel.item(),
+                loss_kl.item(),
                 loss_latent.item(),
                 time_left,
             )

@@ -2,15 +2,21 @@ import glob
 import random
 import os
 import numpy as np
-
+import torch
 from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as transforms
 
 
 class ImageDataset(Dataset):
-    def __init__(self, root, transforms_=None, mode="train"):
-        self.transform = transforms.Compose(transforms_)
+    def __init__(self, root, input_shape, mode="train"):
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize(input_shape[-2:], Image.BICUBIC),
+                transforms.ToTensor(),
+                transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+            ]
+        )
 
         self.files = sorted(glob.glob(os.path.join(root, mode) + "/*.*"))
 

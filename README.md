@@ -110,6 +110,10 @@ Many image-to-image translation problems are ambiguous, as a single input image 
 
 [[Paper]](https://arxiv.org/abs/1711.11586) [[Code]](implementations/bicyclegan/bicyclegan.py)
 
+<p align="center">
+    <img src="assets/bicyclegan_architecture.jpg" width="800"\>
+</p>
+
 #### Run Example
 ```
 $ cd data/
@@ -117,6 +121,14 @@ $ bash download_pix2pix_dataset.sh edges2shoes
 $ cd ../implementations/bicyclegan/
 $ python3 bicyclegan.py
 ```
+
+<p align="center">
+    <img src="assets/bicyclegan.png" width="640"\>
+</p>
+<p align="center">
+    Various style translations by varying the latent code.
+</p>
+
 
 ### Boundary-Seeking GAN
 _Boundary-Seeking Generative Adversarial Networks_
@@ -453,7 +465,7 @@ $ python3 munit.py --dataset_name edges2shoes
 </p>
 <p align="center">
     Results by varying the style code.
-</p> 
+</p>
 
 ### Pix2Pix
 _Unpaired Image-to-Image Translation with Conditional Adversarial Networks_

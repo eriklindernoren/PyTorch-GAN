@@ -23,12 +23,10 @@ def weights_init_normal(m):
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0):
         super(UNetDown, self).__init__()
-        layers = [nn.Conv2d(in_size, out_size, 4, stride=2, padding=1, bias=False)]
+        layers = [nn.Conv2d(in_size, out_size, 3, stride=2, padding=1, bias=False)]
         if normalize:
-            layers.append(nn.InstanceNorm2d(out_size, affine=True, track_running_stats=True))
+            layers.append(nn.BatchNorm2d(out_size, 0.8))
         layers.append(nn.LeakyReLU(0.2))
-        if dropout:
-            layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -36,22 +34,18 @@ class UNetDown(nn.Module):
 
 
 class UNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0):
+    def __init__(self, in_size, out_size):
         super(UNetUp, self).__init__()
-        layers = [
-            nn.ConvTranspose2d(in_size, out_size, 4, stride=2, padding=1, bias=False),
-            nn.InstanceNorm2d(out_size, affine=True, track_running_stats=True),
+        self.model = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(in_size, out_size, 3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(out_size, 0.8),
             nn.ReLU(inplace=True),
-        ]
-        if dropout:
-            layers.append(nn.Dropout(dropout))
-
-        self.model = nn.Sequential(*layers)
+        )
 
     def forward(self, x, skip_input):
         x = self.model(x)
         x = torch.cat((x, skip_input), 1)
-
         return x
 
 
@@ -69,7 +63,6 @@ class Generator(nn.Module):
         self.down5 = UNetDown(512, 512)
         self.down6 = UNetDown(512, 512)
         self.down7 = UNetDown(512, 512, normalize=False)
-
         self.up1 = UNetUp(512, 512)
         self.up2 = UNetUp(1024, 512)
         self.up3 = UNetUp(1024, 512)
@@ -77,13 +70,14 @@ class Generator(nn.Module):
         self.up5 = UNetUp(512, 128)
         self.up6 = UNetUp(256, 64)
 
-        final = [nn.ConvTranspose2d(128, channels, 4, stride=2, padding=1), nn.Tanh()]
-        self.final = nn.Sequential(*final)
+        self.final = nn.Sequential(
+            nn.Upsample(scale_factor=2), nn.Conv2d(128, channels, 3, stride=1, padding=1), nn.Tanh()
+        )
 
     def forward(self, x, z):
         # Propogate noise through fc layer and reshape to img shape
-        z_ = self.fc(z).view(z.size(0), 1, self.h, self.w)
-        d1 = self.down1(torch.cat((x, z_), 1))
+        z = self.fc(z).view(z.size(0), 1, self.h, self.w)
+        d1 = self.down1(torch.cat((x, z), 1))
         d2 = self.down2(d1)
         d3 = self.down3(d2)
         d4 = self.down4(d3)
@@ -106,15 +100,11 @@ class Generator(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, latent_dim):
+    def __init__(self, latent_dim, input_shape):
         super(Encoder, self).__init__()
-
-        resnet18_model = resnet18(pretrained=True)
-
-        # Extracts features at the last fully-connected
+        resnet18_model = resnet18(pretrained=False)
         self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-3])
         self.pooling = nn.AvgPool2d(kernel_size=8, stride=8, padding=0)
-
         # Output is mu and log(var) for reparameterization trick used in VAEs
         self.fc_mu = nn.Linear(256, latent_dim)
         self.fc_logvar = nn.Linear(256, latent_dim)
@@ -134,24 +124,25 @@ class Encoder(nn.Module):
 
 
 class MultiDiscriminator(nn.Module):
-    def __init__(self, in_channels=3):
+    def __init__(self, input_shape):
         super(MultiDiscriminator, self).__init__()
 
         def discriminator_block(in_filters, out_filters, normalize=True):
             """Returns downsampling layers of each discriminator block"""
             layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
             if normalize:
-                layers.append(nn.InstanceNorm2d(out_filters))
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
+                layers.append(nn.BatchNorm2d(out_filters, 0.8))
+            layers.append(nn.LeakyReLU(0.2))
             return layers
 
-        # Extracts three discriminator models
+        channels, _, _ = input_shape
+        # Extracts discriminator models
         self.models = nn.ModuleList()
         for i in range(3):
             self.models.add_module(
                 "disc_%d" % i,
                 nn.Sequential(
-                    *discriminator_block(in_channels, 64, normalize=False),
+                    *discriminator_block(channels, 64, normalize=False),
                     *discriminator_block(64, 128),
                     *discriminator_block(128, 256),
                     *discriminator_block(256, 512),
