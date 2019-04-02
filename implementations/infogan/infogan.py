@@ -64,7 +64,7 @@ class Generator(nn.Module):
         self.l1 = nn.Sequential(nn.Linear(input_dim, 128 * self.init_size ** 2))
 
         self.conv_blocks = nn.Sequential(
-            nn.BatchNorm2d(128),
+            # nn.BatchNorm2d(128),
             nn.Upsample(scale_factor=2),
             nn.Conv2d(128, 128, 3, stride=1, padding=1),
             nn.BatchNorm2d(128, 0.8),
@@ -269,7 +269,7 @@ for epoch in range(opt.n_epochs):
         # Sample noise, labels and code as generator input
         z = Variable(FloatTensor(np.random.normal(0, 1, (batch_size, opt.latent_dim))))
         label_input = to_categorical(sampled_labels, num_columns=opt.n_classes)
-        code_input = Variable(FloatTensor(np.random.normal(-1, 1, (batch_size, opt.code_dim))))
+        code_input = Variable(FloatTensor(np.random.uniform(-1, 1, (batch_size, opt.code_dim))))
 
         gen_imgs = generator(z, label_input, code_input)
         _, pred_label, pred_code = discriminator(gen_imgs)
