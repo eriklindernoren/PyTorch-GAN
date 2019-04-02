@@ -123,7 +123,7 @@ $ python3 bicyclegan.py
 ```
 
 <p align="center">
-    <img src="assets/bicyclegan.png" width="640"\>
+    <img src="assets/bicyclegan.png" width="480"\>
 </p>
 <p align="center">
     Various style translations by varying the latent code.
