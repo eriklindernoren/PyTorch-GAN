@@ -9,10 +9,10 @@ class FeatureExtractor(nn.Module):
     def __init__(self):
         super(FeatureExtractor, self).__init__()
         vgg19_model = vgg19(pretrained=True)
-        self.feature_extractor = nn.Sequential(*list(vgg19_model.features.children())[:17])
+        self.vgg19_54 = nn.Sequential(*list(vgg19_model.features.children())[:35])
 
     def forward(self, img):
-        return self.feature_extractor(img)
+        return self.vgg19_54(img)
 
 
 class DenseResidualBlock(nn.Module):
@@ -21,7 +21,7 @@ class DenseResidualBlock(nn.Module):
     """
 
     def __init__(self, filters, res_scale=0.2):
-        super(DenseBlock, self).__init__()
+        super(DenseResidualBlock, self).__init__()
         self.res_scale = res_scale
 
         def block(in_features, non_linearity=True):
@@ -38,21 +38,16 @@ class DenseResidualBlock(nn.Module):
         self.blocks = [self.b1, self.b2, self.b3, self.b4, self.b5]
 
     def forward(self, x):
-        inputs = [x]
+        inputs = x
         for block in self.blocks:
-            out = torch.cat(inputs, 1)
-            out = block(out)
-            inputs += [out]
+            out = block(inputs)
+            inputs = torch.cat([inputs, out], 1)
         return out.mul(self.res_scale) + x
 
 
-class ResidualInResidualBlock(nn.Module):
-    """
-    Residual in Residual Dense Block
-    """
-
+class ResidualInResidualDenseBlock(nn.Module):
     def __init__(self, filters, res_scale=0.2):
-        super(ResidualInResidualBlock, self).__init__()
+        super(ResidualInResidualDenseBlock, self).__init__()
         self.res_scale = res_scale
         self.dense_blocks = nn.Sequential(
             DenseResidualBlock(filters), DenseResidualBlock(filters), DenseResidualBlock(filters)
@@ -68,13 +63,10 @@ class GeneratorRRDB(nn.Module):
 
         # First layer
         self.conv1 = nn.Conv2d(channels, filters, kernel_size=3, stride=1, padding=1)
-
         # Residual blocks
-        self.res_blocks = nn.Sequential(*[ResidualInResidualBlock(filters) for _ in range(num_res_blocks)])
-
+        self.res_blocks = nn.Sequential(*[ResidualInResidualDenseBlock(filters) for _ in range(num_res_blocks)])
         # Second conv layer post residual blocks
         self.conv2 = nn.Conv2d(filters, filters, kernel_size=3, stride=1, padding=1)
-
         # Upsampling layers
         upsample_layers = []
         for _ in range(num_upsample):
@@ -84,7 +76,6 @@ class GeneratorRRDB(nn.Module):
                 nn.PixelShuffle(upscale_factor=2),
             ]
         self.upsampling = nn.Sequential(*upsample_layers)
-
         # Final output block
         self.conv3 = nn.Sequential(
             nn.Conv2d(filters, filters, kernel_size=3, stride=1, padding=1),
