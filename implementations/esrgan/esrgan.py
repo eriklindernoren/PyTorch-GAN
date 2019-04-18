@@ -63,7 +63,7 @@ feature_extractor = FeatureExtractor().to(device)
 feature_extractor.eval()
 
 # Losses
-criterion_GAN = torch.nn.MSELoss().to(device)
+criterion_GAN = torch.nn.BCEWithLogitsLoss().to(device)
 criterion_content = torch.nn.L1Loss().to(device)
 
 if opt.epoch != 0:
@@ -120,7 +120,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_content = criterion_content(gen_features, real_features.detach())
 
         # Total loss
-        loss_G = loss_content + 1e-5 * loss_GAN
+        loss_G = loss_content + 5e-3 * loss_GAN
 
         loss_G.backward()
         optimizer_G.step()
@@ -149,8 +149,17 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # --------------
 
         print(
-            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
-            % (epoch, opt.n_epochs, i, len(dataloader), loss_D.item(), loss_G.item())
+            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, content: %f, adv: %f]"
+            % (
+                epoch,
+                opt.n_epochs,
+                i,
+                len(dataloader),
+                loss_D.item(),
+                loss_G.item(),
+                loss_content.item(),
+                loss_GAN.item(),
+            )
         )
 
         batches_done = epoch * len(dataloader) + i

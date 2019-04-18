@@ -393,7 +393,7 @@ $ python3 esrgan.py
 ```
 
 <p align="center">
-    <img src="assets/esrgan.png" width="320"\>
+    <img src="assets/enhanced_superresgan.png" width="320"\>
 </p>
 <p align="center">
     Nearest Neighbor Upsampling | ESRGAN

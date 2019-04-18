@@ -15,22 +15,7 @@ class FeatureExtractor(nn.Module):
         return self.feature_extractor(img)
 
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_features):
-        super(ResidualBlock, self).__init__()
-        self.conv_block = nn.Sequential(
-            nn.Conv2d(in_features, in_features, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_features, 0.8),
-            nn.PReLU(),
-            nn.Conv2d(in_features, in_features, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_features, 0.8),
-        )
-
-    def forward(self, x):
-        return x + self.conv_block(x)
-
-
-class DenseBlock(nn.Module):
+class DenseResidualBlock(nn.Module):
     """
     The core module of paper: (Residual Dense Network for Image Super-Resolution, CVPR 18)
     """
@@ -69,7 +54,9 @@ class ResidualInResidualBlock(nn.Module):
     def __init__(self, filters, res_scale=0.2):
         super(ResidualInResidualBlock, self).__init__()
         self.res_scale = res_scale
-        self.dense_blocks = nn.Sequential(DenseBlock(filters), DenseBlock(filters), DenseBlock(filters))
+        self.dense_blocks = nn.Sequential(
+            DenseResidualBlock(filters), DenseResidualBlock(filters), DenseResidualBlock(filters)
+        )
 
     def forward(self, x):
         return self.dense_blocks(x).mul(self.res_scale) + x
