@@ -72,8 +72,9 @@ criterion_pixel = torch.nn.L1Loss().to(device)
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load("saved_models/generator_%d.pth"))
-    discriminator.load_state_dict(torch.load("saved_models/discriminator_%d.pth"))
+    print("loading pretrain model")
+    generator.load_state_dict(torch.load("saved_models/generator_%d.pth"%opt.epoch))
+    discriminator.load_state_dict(torch.load("saved_models/discriminator_%d.pth"%opt.epoch))
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
@@ -191,5 +192,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         if batches_done % opt.checkpoint_interval == 0:
             # Save model checkpoints
-            torch.save(generator.state_dict(), "saved_models/generator_%d.pth" % batches_done)
-            torch.save(discriminator.state_dict(), "saved_models/discriminator_%d.pth" % batches_done)
+            torch.save(generator.state_dict(), "saved_models/generator_%d.pth" % epoch)
+            torch.save(discriminator.state_dict(), "saved_models/discriminator_%d.pth" %epoch)
