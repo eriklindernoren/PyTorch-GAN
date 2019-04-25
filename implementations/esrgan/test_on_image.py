@@ -1,5 +1,5 @@
 from models import GeneratorRRDB
-from datasets import denormalize, mean, std
+from datasets import mean, std
 import torch
 from torch.autograd import Variable
 import argparse
@@ -31,8 +31,8 @@ image_tensor = Variable(transform(Image.open(opt.image_path))).to(device).unsque
 
 # Upsample image
 with torch.no_grad():
-    sr_image = denormalize(generator(image_tensor)).cpu()
+    sr_image = generator(image_tensor).cpu()
 
 # Save image
 fn = opt.image_path.split("/")[-1]
-save_image(sr_image, f"images/outputs/sr-{fn}")
+save_image(sr_image, f"images/outputs/sr-{fn}",normalize=True)
