@@ -13,6 +13,13 @@ mean = np.array([0.485, 0.456, 0.406])
 std = np.array([0.229, 0.224, 0.225])
 
 
+def denormalize(tensors):
+    """ Denormalizes image tensors using mean and std """
+    for c in range(3):
+        tensors[:, c].mul_(std[c]).add_(mean[c])
+    return torch.clamp(tensors, 0, 255)
+
+
 class ImageDataset(Dataset):
     def __init__(self, root, hr_shape):
         hr_height, hr_width = hr_shape

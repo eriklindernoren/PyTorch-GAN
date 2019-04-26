@@ -4,6 +4,7 @@ import torch
 from torch.autograd import Variable
 import argparse
 import os
+from torchvision import transforms
 from torchvision.utils import save_image
 from PIL import Image
 
