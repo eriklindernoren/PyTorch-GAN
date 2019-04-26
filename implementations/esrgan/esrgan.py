@@ -191,5 +191,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         if batches_done % opt.checkpoint_interval == 0:
             # Save model checkpoints
-            torch.save(generator.state_dict(), "saved_models/generator_%d.pth" % batches_done)
-            torch.save(discriminator.state_dict(), "saved_models/discriminator_%d.pth" % batches_done)
+            torch.save(generator.state_dict(), "saved_models/generator_%d.pth" % epoch)
+            torch.save(discriminator.state_dict(), "saved_models/discriminator_%d.pth" %epoch)
