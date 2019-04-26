@@ -72,9 +72,8 @@ criterion_pixel = torch.nn.L1Loss().to(device)
 
 if opt.epoch != 0:
     # Load pretrained models
-    print("loading pretrain model")
-    generator.load_state_dict(torch.load("saved_models/generator_%d.pth"%opt.epoch))
-    discriminator.load_state_dict(torch.load("saved_models/discriminator_%d.pth"%opt.epoch))
+    generator.load_state_dict(torch.load("saved_models/generator_%d.pth" % opt.epoch))
+    discriminator.load_state_dict(torch.load("saved_models/discriminator_%d.pth" % opt.epoch))
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
