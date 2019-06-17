@@ -150,7 +150,7 @@ $ cd implementations/bgan/
 $ python3 bgan.py
 ```
 
-### Conditional GAN
+### Cluster GAN
 _ClusterGAN: Latent Space Clustering in Generative Adversarial Networks_
 
 #### Authors
