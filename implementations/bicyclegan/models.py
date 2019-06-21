@@ -106,8 +106,10 @@ class Encoder(nn.Module):
         self.feature_extractor = nn.Sequential(*list(resnet18_model.children())[:-3])
         self.pooling = nn.AvgPool2d(kernel_size=8, stride=8, padding=0)
         # Output is mu and log(var) for reparameterization trick used in VAEs
-        self.fc_mu = nn.Linear(256, latent_dim)
-        self.fc_logvar = nn.Linear(256, latent_dim)
+        basic_planes = 64
+        _, self.h, self.w = input_shape
+        self.fc_mu = nn.Linear(basic_planes * int(self.h / basic_planes) * int(self.w / basic_planes), latent_dim)
+        self.fc_logvar = nn.Linear(basic_planes * int(self.h / basic_planes) * int(self.w / basic_planes), latent_dim)
 
     def forward(self, img):
         out = self.feature_extractor(img)
