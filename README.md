@@ -13,6 +13,7 @@ Collection of PyTorch implementations of Generative Adversarial Network varietie
     + [BEGAN](#began)
     + [BicycleGAN](#bicyclegan)
     + [Boundary-Seeking GAN](#boundary-seeking-gan)
+    + [Cluster GAN](#cluster-gan)
     + [Conditional GAN](#conditional-gan)
     + [Context-Conditional GAN](#context-conditional-gan)
     + [Context Encoder](#context-encoder)
@@ -148,6 +149,39 @@ Generative adversarial networks (GANs) are a learning framework that rely on tra
 $ cd implementations/bgan/
 $ python3 bgan.py
 ```
+
+### Cluster GAN
+_ClusterGAN: Latent Space Clustering in Generative Adversarial Networks_
+
+#### Authors
+Sudipto Mukherjee, Himanshu Asnani, Eugene Lin, Sreeram Kannan
+
+#### Abstract
+Generative Adversarial networks (GANs) have obtained remarkable success in many unsupervised learning tasks and
+unarguably, clustering is an important unsupervised learning problem. While one can potentially exploit the
+latent-space back-projection in GANs to cluster, we demonstrate that the cluster structure is not retained in the
+GAN latent space.  In this paper, we propose ClusterGAN as a new mechanism for clustering using GANs. By sampling
+latent variables from a mixture of one-hot encoded variables and continuous latent variables, coupled with an
+inverse network (which projects the data to the latent space) trained jointly with a clustering specific loss, we
+are able to achieve clustering in the latent space. Our results show a remarkable phenomenon that GANs can preserve
+latent space interpolation across categories, even though the discriminator is never exposed to such vectors. We
+compare our results with various clustering baselines and demonstrate superior performance on both synthetic and
+real datasets.
+
+[[Paper]](https://arxiv.org/abs/1809.03627) [[Code]](implementations/cluster_gan/clustergan.py)
+
+Code based on a full PyTorch [[implementation]](https://github.com/zhampel/clusterGAN).
+
+#### Run Example
+```
+$ cd implementations/cluster_gan/
+$ python3 clustergan.py
+```
+
+<p align="center">
+    <img src="assets/cluster_gan.gif" width="360"\>
+</p>
+
 
 ### Conditional GAN
 _Conditional Generative Adversarial Nets_
