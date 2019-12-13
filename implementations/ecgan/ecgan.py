@@ -216,8 +216,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
 
         # Cycle loss complement
-        loss_cycle_complement_A = criterion_cycle(real_B, gen_imgs_A)
-        loss_cycle_complement_B = criterion_cycle(real_A, gen_imgs_B)
+        loss_cycle_complement_A = criterion_cycle(real_A, gen_imgs_A)
+        loss_cycle_complement_B = criterion_cycle(real_B, gen_imgs_B)
 
         loss_cycle_complement = (loss_cycle_complement_A + loss_cycle_complement_B) / 2
 
