@@ -200,10 +200,11 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_identity = (loss_id_A + loss_id_B) / 2
 
         # Relaticistic average GAN loss
-        loss_GAN_AB_fake = criterion_relativivistic_GAN(fake_pred_A - real_pred_A.mean(0, keepdim=True), valid)
-        loss_GAN_BA_fake = criterion_relativivistic_GAN(fake_pred_B - real_pred_B.mean(0, keepdim=True), valid)
-
-        loss_GAN = (loss_GAN_AB_fake + loss_GAN_BA_fake) / 2
+        loss_GAN_AB_real = criterion_relativivistic_GAN(real_pred_A - fake_pred_A.mean(0, keepdim=True), valid)
+        loss_GAN_AB_fake = criterion_relativivistic_GAN(fake_pred_A - real_pred_A.mean(0, keepdim=True), fake)
+        loss_GAN_BA_real = criterion_relativivistic_GAN(real_pred_B - fake_pred_B.mean(0, keepdim=True), valid)
+        loss_GAN_BA_fake = criterion_relativivistic_GAN(fake_pred_B - real_pred_B.mean(0, keepdim=True), fake)
+        loss_GAN = (loss_GAN_AB_fake + loss_GAN_AB_real + loss_GAN_BA_fake + loss_GAN_BA_real) / 4
 
         # Cycle loss
         recov_A = G_BA(gen_imgs_B)
