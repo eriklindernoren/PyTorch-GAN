@@ -151,7 +151,7 @@ for epoch in range(opt.n_epochs):
         )[0]
         real_grad_norm = real_grad.view(real_grad.size(0), -1).pow(2).sum(1) ** (p / 2)
 
-        fake_grad_out = Variable(Tensor(fake_imgs.size(0), 1).fill_(1.0), requires_grad=False)
+        fake_grad_out = Variable(Tensor(fake_imgs.size(0), 1).fill_(0.0), requires_grad=False)
         fake_grad = autograd.grad(
             fake_validity, fake_imgs, fake_grad_out, create_graph=True, retain_graph=True, only_inputs=True
         )[0]
