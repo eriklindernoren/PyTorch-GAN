@@ -98,6 +98,22 @@ if cuda:
 else:
     print("using CPU")
 
+if os.path.isdir('images'):
+    expand = 0
+    while True:
+        expand += 1
+        save_folder = 'images' + '({})'.format(expand)
+        if os.path.isdir(save_folder):
+            continue
+        else:
+            os.makedirs(save_folder)
+            break
+else:
+    save_folder = 'images'
+    os.makedirs(save_folder)
+if len(os.listdir(save_folder)) is not 0:
+    raise Exception('Directory is not empty!')
+
 # Configure data loader
 os.makedirs("../../data/mnist", exist_ok=True)
 dataloader = torch.utils.data.DataLoader(
@@ -172,4 +188,4 @@ for epoch in range(opt.n_epochs):
 
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
-            save_image(gen_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
+            save_image(gen_imgs.data[:25], save_folder+"/%d.png" % batches_done, nrow=5, normalize=True)
