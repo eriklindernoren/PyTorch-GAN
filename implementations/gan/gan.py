@@ -191,4 +191,4 @@ for epoch in range(opt.n_epochs):
     writer.add_scalar('Loss/generator', g_loss_epoch, epoch)
     writer.add_scalar('Loss/discriminator', d_loss_epoch, epoch)
     img_grid = torchvision.utils.make_grid(gen_imgs.data[:25])
-    writer.add_image('Sample generated images', img_grid)
+    writer.add_image('Sample generated images', img_grid, epoch)
