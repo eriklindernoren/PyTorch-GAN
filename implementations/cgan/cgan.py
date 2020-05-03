@@ -3,12 +3,14 @@ import os
 import numpy as np
 import math
 
+import torchvision
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
+from torch.utils.tensorboard import SummaryWriter
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -130,6 +132,11 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 FloatTensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if cuda else torch.LongTensor
 
+writer = SummaryWriter()
+save_folder = 'results/'+list(writer.all_writers.keys())[0]
+os.makedirs(save_folder)
+if len(os.listdir(save_folder)) is not 0:
+    raise Exception('Directory is not empty!')
 
 def sample_image(n_row, batches_done):
     """Saves a grid of generated digits ranging from 0 to n_classes"""
@@ -139,7 +146,7 @@ def sample_image(n_row, batches_done):
     labels = np.array([num for _ in range(n_row) for num in range(n_row)])
     labels = Variable(LongTensor(labels))
     gen_imgs = generator(z, labels)
-    save_image(gen_imgs.data, "images/%d.png" % batches_done, nrow=n_row, normalize=True)
+    save_image(gen_imgs.data, save_folder+"/%d.png" % batches_done, nrow=n_row, normalize=True)
 
 
 # ----------
@@ -147,6 +154,8 @@ def sample_image(n_row, batches_done):
 # ----------
 
 for epoch in range(opt.n_epochs):
+    g_loss_epoch = 0
+    d_loss_epoch = 0
     for i, (imgs, labels) in enumerate(dataloader):
 
         batch_size = imgs.shape[0]
@@ -199,6 +208,9 @@ for epoch in range(opt.n_epochs):
         d_loss.backward()
         optimizer_D.step()
 
+        g_loss_epoch += g_loss.item() / len(dataloader)
+        d_loss_epoch += d_loss.item() / len(dataloader)
+
         print(
             "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
             % (epoch, opt.n_epochs, i, len(dataloader), d_loss.item(), g_loss.item())
@@ -207,3 +219,7 @@ for epoch in range(opt.n_epochs):
         batches_done = epoch * len(dataloader) + i
         if batches_done % opt.sample_interval == 0:
             sample_image(n_row=10, batches_done=batches_done)
+    writer.add_scalar('Loss/generator', g_loss_epoch, epoch)
+    writer.add_scalar('Loss/discriminator', d_loss_epoch, epoch)
+    img_grid = torchvision.utils.make_grid(gen_imgs.data[:25])
+    writer.add_image('Sample generated images', img_grid, epoch)
