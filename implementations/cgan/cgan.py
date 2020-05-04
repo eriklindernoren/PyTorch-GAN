@@ -32,7 +32,7 @@ parser.add_argument("--n_classes", type=int, default=10, help="number of classes
 parser.add_argument("--img_size", type=int, default=32, help="size of each image dimension")
 parser.add_argument("--channels", type=int, default=1, help="number of image channels")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval between image sampling")
-parser.add_argument("--gpu", type=int, default=0, help="interval betwen image samples")
+parser.add_argument("--gpu", type=int, default=0, help="gpu index")
 opt = parser.parse_args()
 print(opt)
 
