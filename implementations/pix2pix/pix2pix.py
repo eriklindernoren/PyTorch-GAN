@@ -7,15 +7,18 @@ import time
 import datetime
 import sys
 
+import torchvision
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
+from torch.utils.tensorboard import SummaryWriter
 
-from models import *
-from datasets import *
+
+from implementations.pix2pix.models import *
+from implementations.pix2pix.datasets import *
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -38,6 +41,7 @@ parser.add_argument(
     "--sample_interval", type=int, default=500, help="interval between sampling of images from generators"
 )
 parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interval between model checkpoints")
+parser.add_argument("--gpu", type=int, default=0, help="gpu index")
 opt = parser.parse_args()
 print(opt)
 
@@ -61,10 +65,14 @@ generator = GeneratorUNet()
 discriminator = Discriminator()
 
 if cuda:
+    torch.cuda.set_device(opt.gpu)
+    print("using GPU " + str(opt.gpu) + ": " + torch.cuda.get_device_name(opt.gpu))
     generator = generator.cuda()
     discriminator = discriminator.cuda()
     criterion_GAN.cuda()
     criterion_pixelwise.cuda()
+else:
+    print("using CPU")
 
 if opt.epoch != 0:
     # Load pretrained models
@@ -103,6 +111,11 @@ val_dataloader = DataLoader(
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
+writer = SummaryWriter()
+save_folder = 'results/'+list(writer.all_writers.keys())[0]
+os.makedirs(save_folder)
+if len(os.listdir(save_folder)) is not 0:
+    raise Exception('Directory is not empty!')
 
 def sample_images(batches_done):
     """Saves a generated sample from the validation set"""
@@ -111,7 +124,9 @@ def sample_images(batches_done):
     real_B = Variable(imgs["A"].type(Tensor))
     fake_B = generator(real_A)
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
-    save_image(img_sample, "images/%s/%s.png" % (opt.dataset_name, batches_done), nrow=5, normalize=True)
+    save_image(img_sample, "%s/%s.png" % (save_folder, batches_done), nrow=5, normalize=True)
+    img_grid = torchvision.utils.make_grid(img_sample.data)
+    writer.add_image('Sample generated images (step = batches_done)', img_grid, batches_done)
 
 
 # ----------
@@ -121,6 +136,8 @@ def sample_images(batches_done):
 prev_time = time.time()
 
 for epoch in range(opt.epoch, opt.n_epochs):
+    loss_G_epoch = 0
+    loss_D_epoch = 0
     for i, batch in enumerate(dataloader):
 
         # Model inputs
@@ -181,6 +198,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         time_left = datetime.timedelta(seconds=batches_left * (time.time() - prev_time))
         prev_time = time.time()
 
+        loss_G_epoch += loss_G.item() / len(dataloader)
+        loss_D_epoch += loss_D.item() / len(dataloader)
+
         # Print log
         sys.stdout.write(
             "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, pixel: %f, adv: %f] ETA: %s"
@@ -205,3 +225,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Save model checkpoints
         torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
         torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
+
+    writer.add_scalar('Loss/generator', loss_G_epoch, epoch)
+    writer.add_scalar('Loss/discriminator', loss_D_epoch, epoch)
