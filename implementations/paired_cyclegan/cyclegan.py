@@ -103,9 +103,7 @@ lr_scheduler_D_B = torch.optim.lr_scheduler.LambdaLR(
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.Tensor
 
-# Buffers of previously generated samples
-fake_A_buffer = ReplayBuffer()
-fake_B_buffer = ReplayBuffer()
+
 
 # Image transformations
 transforms_ = [
@@ -213,8 +211,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Real loss
         loss_real = criterion_GAN(D_A(real_A), valid)
         # Fake loss (on batch of previously generated samples)
-        fake_A_ = fake_A_buffer.push_and_pop(fake_A)
-        loss_fake = criterion_GAN(D_A(fake_A_.detach()), fake)
+        loss_fake = criterion_GAN(D_A(fake_A.detach()), fake)
         # Total loss
         loss_D_A = (loss_real + loss_fake) / 2
 
@@ -230,8 +227,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # Real loss
         loss_real = criterion_GAN(D_B(real_B), valid)
         # Fake loss (on batch of previously generated samples)
-        fake_B_ = fake_B_buffer.push_and_pop(fake_B)
-        loss_fake = criterion_GAN(D_B(fake_B_.detach()), fake)
+ 
+        loss_fake = criterion_GAN(D_B(fake_B.detach()), fake)
         # Total loss
         loss_D_B = (loss_real + loss_fake) / 2
 
