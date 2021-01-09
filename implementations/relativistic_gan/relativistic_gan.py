@@ -148,13 +148,15 @@ for epoch in range(opt.n_epochs):
         real_pred = discriminator(real_imgs).detach()
         fake_pred = discriminator(gen_imgs)
 
-        if opt.rel_avg_gan:
-            g_loss = adversarial_loss(fake_pred - real_pred.mean(0, keepdim=True), valid)
-        else:
-            g_loss = adversarial_loss(fake_pred - real_pred, valid)
-
         # Loss measures generator's ability to fool the discriminator
-        g_loss = adversarial_loss(discriminator(gen_imgs), valid)
+        if opt.rel_avg_gan:
+            g_real_loss = adversarial_loss(real_pred - fake_pred.mean(0, keepdim=True), fake)
+            g_fake_loss = adversarial_loss(fake_pred - real_pred.mean(0, keepdim=True), valid)
+        else:
+            g_real_loss = adversarial_loss(real_pred - fake_pred, fake)
+            g_fake_loss = adversarial_loss(fake_pred - real_pred, valid)
+
+        g_loss = (g_real_loss + g_fake_loss) / 2
 
         g_loss.backward()
         optimizer_G.step()

@@ -132,7 +132,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         pred_fake = discriminator(gen_hr)
 
         # Adversarial loss (relativistic average GAN)
-        loss_GAN = criterion_GAN(pred_fake - pred_real.mean(0, keepdim=True), valid)
+        loss_GAN = (criterion_GAN(pred_fake - pred_real.mean(0, keepdim=True), valid) +
+                    criterion_GAN(pred_real - pred_fake.mean(0, keepdim=True), fake))/2
 
         # Content loss
         gen_features = feature_extractor(gen_hr)
