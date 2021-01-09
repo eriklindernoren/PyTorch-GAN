@@ -41,6 +41,7 @@ Collection of PyTorch implementations of Generative Adversarial Network varietie
     + [UNIT](#unit)
     + [Wasserstein GAN](#wasserstein-gan)
     + [Wasserstein GAN GP](#wasserstein-gan-gp)
+    + [CTGAN](#ctgan)
     + [Wasserstein GAN DIV](#wasserstein-gan-div)
 
 ## Installation
@@ -758,6 +759,29 @@ $ python3 wgan_gp.py
 <p align="center">
     <img src="assets/wgan_gp.gif" width="240"\>
 </p>
+
+### CTGAN
+_IMPROVING THE IMPROVED TRAINING OF WASSERSTEIN GANS: A CONSISTENCY TERM AND ITS DUAL EFFECT_
+
+#### Authors
+Xiang Wei, Boqing Gong, Zixia Liu, Wei Lu, Liqiang Wang
+
+#### Abstract
+Despite being impactful on a variety of problems and applications, the generative adversarialnets(GANs)are remarkably difﬁcult to train. This issue is formally analyzed by Arjovsky & Bottou(2017),who also propose an alternative direction to avoid the caveats in the minmax two-player training of GANs. The corresponding algorithm, called Wasserstein GAN (WGAN), hinges on the 1-Lipschitz continuity of the discriminator. In this paper, we propose a novel approach to enforcing the Lipschitz continuity in the training procedure of WGANs. Our approach seamlessly connects WGAN with one of the recent semi-supervised learning methods. As a result, it gives rise to not only better photo-realistic samples than the previous methods but also state-of-the-art semi-supervised learning results. In particular, our approach gives rise to the inception score of more than 5.0 with only 1,000 CIFAR-10 images and is the ﬁrst that exceeds the accuracy of 90% on the CIFAR-10 dataset using only 4,000 labeled images, to the best of our knowledge.
+
+
+[[Paper]](http://arxiv.org/abs/1803.01541) [[Code]](implementations/ctgan/ctgan.py)
+
+#### Run Example
+```
+$ cd implementations/ctgan/
+$ python3 ctgan.py
+```
+
+<p align="center">
+    <img src="assets/ctgan.gif" width="240"\>
+</p>
+
 
 ### Wasserstein GAN DIV
 _Wasserstein Divergence for GANs_
