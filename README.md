@@ -302,6 +302,17 @@ $ python3 cyclegan.py --dataset_name monet2photo
     Monet to photo translations.
 </p>
 
+### Enhanced CycleGAN (ECGAN)
+_Image Translation with Multi-scale Relativistic Average Discriminator_
+
+#### Authors
+Weihao Xia, Yujiu Yang, Xian-yu Bao
+
+#### Abstract
+Image-to-image translation aims to transform an image of one source domain to another target domain, which can be applied to many specific tasks, such as image restoration and style transfer. As one of the most popular frameworks, CycleGAN with cycle consistency loss can transform between different domains with unpaired training data, which greatly expands its application efficiency. However, due to its under-constrained mapping and dissatisfactory network design, the results of CycleGAN are sometimes unnatural and unreal. In some cases, there are visible artifacts in the synthetic images. In this paper, we propose an Enhanced CycleGAN (ECGAN) framework with multi-scale relativistic average discriminator, which integrates the loss function design and network structure optimization to make the generated images have more natural textures and fewer unwanted artifacts. In the evaluation, besides using quantitative full reference image quality assessment metrics (such as PSNR, SSIM), we also conduct an evaluation on the Frechet Inception distance (FID), which are more consistent with human subjective assessment according to natural, realistic and diverse. Experiments on two benchmark datasets, including CMP facades and CUHK face datasets, show that the proposed ECGAN framework outperforms the state-of-the-art methods in both quantitative and qualitative evaluation.
+
+[[Paper]](https://link.springer.com/chapter/10.1007%2F978-3-030-23367-9_3) [[Code]](implementations/ecgan/ecgan.py)
+
 ### Deep Convolutional GAN
 _Deep Convolutional Generative Adversarial Network_
 
