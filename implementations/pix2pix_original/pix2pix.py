@@ -139,6 +139,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # GAN loss
         fake_B = generator(real_A)
+        # print(fake_B.shape) # torch.Size([1, 3, 256, 256])
+        # print(real_A.shape) # torch.Size([1, 3, 256, 256])
+        # print(real_B.shape) # torch.Size([1, 3, 256, 256])
         pred_fake = discriminator(fake_B, real_A)
         loss_GAN = criterion_GAN(pred_fake, valid)
         # Pixel-wise loss
