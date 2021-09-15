@@ -58,13 +58,15 @@ parser.add_argument('--val_max', type=float, default=1.0)
 parser.add_argument('--hue_threshold', type=float, default=0.2)
 
 # path config
-
+parser.add_argument('--data_root', type=str, default='../../../SVWB_Unet_jw/data/galaxy_256_v2')
 
 opt = parser.parse_args()
 print(opt)
 
-os.makedirs("images/%s" % opt.dataset_name, exist_ok=True)
-os.makedirs("saved_models/%s" % opt.dataset_name, exist_ok=True)
+DATASET_NAME = opt.data_root.split('/')[-1]
+
+os.makedirs("images/%s" % DATASET_NAME, exist_ok=True)
+os.makedirs("saved_models/%s" % DATASET_NAME, exist_ok=True)
 
 cuda = True if torch.cuda.is_available() else False
 
@@ -90,8 +92,8 @@ if cuda:
 
 if opt.epoch != 0:
     # Load pretrained models
-    generator.load_state_dict(torch.load("saved_models/%s/generator_%d.pth" % (opt.dataset_name, opt.epoch)))
-    discriminator.load_state_dict(torch.load("saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, opt.epoch)))
+    generator.load_state_dict(torch.load("saved_models/%s/generator_%d.pth" % (DATASET_NAME, opt.epoch)))
+    discriminator.load_state_dict(torch.load("saved_models/%s/discriminator_%d.pth" % (DATASET_NAME, opt.epoch)))
 else:
     # Initialize weights
     generator.apply(weights_init_normal)
@@ -109,14 +111,14 @@ transforms_ = [
 ]
 
 dataloader = DataLoader(
-    ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_),
+    ImageDataset("../../data/%s" % DATASET_NAME, transforms_=transforms_),
     batch_size=opt.batch_size,
     shuffle=True,
     num_workers=opt.n_cpu,
 )
 
 val_dataloader = DataLoader(
-    ImageDataset("../../data/%s" % opt.dataset_name, transforms_=transforms_, mode="val"),
+    ImageDataset("../../data/%s" % DATASET_NAME, transforms_=transforms_, mode="val"),
     batch_size=10,
     shuffle=True,
     num_workers=1,
@@ -133,7 +135,7 @@ def sample_images(batches_done):
     real_B = Variable(imgs["A"].type(Tensor))
     fake_B = generator(real_A)
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
-    save_image(img_sample, "images/%s/%s.png" % (opt.dataset_name, batches_done), nrow=5, normalize=True)
+    save_image(img_sample, "images/%s/%s.png" % (DATASET_NAME, batches_done), nrow=5, normalize=True)
 
 
 # ----------
@@ -225,5 +227,5 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
     if opt.checkpoint_interval != -1 and epoch % opt.checkpoint_interval == 0:
         # Save model checkpoints
-        torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (opt.dataset_name, epoch))
-        torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (opt.dataset_name, epoch))
+        torch.save(generator.state_dict(), "saved_models/%s/generator_%d.pth" % (DATASET_NAME, epoch))
+        torch.save(discriminator.state_dict(), "saved_models/%s/discriminator_%d.pth" % (DATASET_NAME, epoch))
