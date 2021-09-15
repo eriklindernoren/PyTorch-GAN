@@ -114,8 +114,17 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 def sample_images(batches_done):
     """Saves a generated sample from the validation set"""
     imgs = next(iter(val_dataloader))
-    real_A = Variable(imgs["B"].type(Tensor))
-    real_B = Variable(imgs["A"].type(Tensor))
+
+    if opt.input_type == "rgb":
+        real_A = Variable(imgs["input_rgb"].type(Tensor))
+    elif opt.input_type == "uvl":
+        real_A = Variable(imgs["input_uvl"].type(Tensor))
+
+    if opt.output_type == "illumination":
+        real_B = Variable(torch.log(imgs["gt_illum"] + 1e-8).type(Tensor))
+    elif opt.output_type == "uv":
+        real_B = Variable(imgs["gt_uv"].type(Tensor))
+        
     fake_B = generator(real_A)
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
     save_image(img_sample, "images/%s/%s.png" % (DATASET_NAME, batches_done), nrow=5, normalize=True)
@@ -131,8 +140,17 @@ for epoch in range(opt.epoch, opt.n_epochs):
     for i, batch in enumerate(dataloader):
 
         # Model inputs
-        real_A = Variable(batch["B"].type(Tensor))
-        real_B = Variable(batch["A"].type(Tensor))
+        if opt.input_type == "rgb":
+            real_A = Variable(batch["input_rgb"].type(Tensor))
+        elif opt.input_type == "uvl":
+            real_A = Variable(batch["input_uvl"].type(Tensor))
+        # real_A = Variable(batch["B"].type(Tensor)) # input
+
+        # GT
+        if opt.output_type == "illumination":
+            real_B = Variable(torch.log(batch["gt_illum"] + 1e-8).type(Tensor))
+        elif opt.output_type == "uv":
+            real_B = Variable(batch["gt_uv"].type(Tensor))
 
         # Adversarial ground truths
         valid = Variable(Tensor(np.ones((real_A.size(0), *patch))), requires_grad=False)
@@ -146,7 +164,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # GAN loss
         fake_B = generator(real_A)
-        pred_fake = discriminator(fake_B, real_A)
+        pred_fake = discriminator(fake_B, real_B)
         loss_GAN = criterion_GAN(pred_fake, valid)
         # Pixel-wise loss
         loss_pixel = criterion_pixelwise(fake_B, real_B)
