@@ -53,7 +53,7 @@ class UNetUp(nn.Module):
 
 
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3):
+    def __init__(self, in_channels=3, out_channels=2):
         super(GeneratorUNet, self).__init__()
 
         self.down1 = UNetDown(in_channels, 64, normalize=False)
@@ -107,7 +107,7 @@ class GeneratorUNet(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels=3):
+    def __init__(self, in_channels=2):
         super(Discriminator, self).__init__()
 
         def discriminator_block(in_filters, out_filters, normalization=True):

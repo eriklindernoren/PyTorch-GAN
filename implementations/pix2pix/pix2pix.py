@@ -124,7 +124,7 @@ def sample_images(batches_done):
         real_B = Variable(torch.log(imgs["gt_illum"] + 1e-8).type(Tensor))
     elif opt.output_type == "uv":
         real_B = Variable(imgs["gt_uv"].type(Tensor))
-        
+
     fake_B = generator(real_A)
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
     save_image(img_sample, "images/%s/%s.png" % (DATASET_NAME, batches_done), nrow=5, normalize=True)
@@ -164,7 +164,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # GAN loss
         fake_B = generator(real_A)
-        pred_fake = discriminator(fake_B, real_B)
+        pred_fake = discriminator(fake_B, real_A)
         loss_GAN = criterion_GAN(pred_fake, valid)
         # Pixel-wise loss
         loss_pixel = criterion_pixelwise(fake_B, real_B)
@@ -183,6 +183,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D.zero_grad()
 
         # Real loss
+        print(fake_B.shape) # torch.Size([1, 2, 256, 256])
+        print(real_A.shape) # torch.Size([1, 3, 256, 256])
+        print(real_B.shape) # torch.Size([1, 2, 256, 256])
         pred_real = discriminator(real_B, real_A)
         loss_real = criterion_GAN(pred_real, valid)
 
