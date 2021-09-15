@@ -40,9 +40,13 @@ parser.add_argument("--checkpoint_interval", type=int, default=-1, help="interva
 
 # dataset & loader config
 parser.add_argument("--dataset_name", type=str, default="facades", help="name of the dataset")
-parser.add_argument("--img_height", type=int, default=256, help="size of image height")
-parser.add_argument("--img_width", type=int, default=256, help="size of image width")
+parser.add_argument('--image_size', type=int, default=256)
 parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
+parser.add_argument('--image_pool', type=int, nargs='+', default=[1,2,3])
+parser.add_argument('--input_type', type=str, default='uvl', choices=['rgb','uvl'])
+parser.add_argument('--output_type', type=str, default='illumination', choices=['illumination','uv','mixmap'])
+parser.add_argument('--mask_black', type=str, default=0)
+parser.add_argument('--mask_highlight', type=str, default=None)
 
 # data augmentation config
 parser.add_argument('--random_crop', type=str, default='yes', choices=['yes','no'])
@@ -72,7 +76,7 @@ criterion_pixelwise = torch.nn.L1Loss()
 lambda_pixel = 100
 
 # Calculate output of image discriminator (PatchGAN)
-patch = (1, opt.img_height // 2 ** 4, opt.img_width // 2 ** 4)
+patch = (1, opt.image_size // 2 ** 4, opt.image_size // 2 ** 4)
 
 # Initialize generator and discriminator
 generator = GeneratorUNet()
@@ -99,7 +103,7 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt
 
 # Configure dataloaders
 transforms_ = [
-    transforms.Resize((opt.img_height, opt.img_width), Image.BICUBIC),
+    transforms.Resize((opt.image_size, opt.image_size), Image.BICUBIC),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 ]
