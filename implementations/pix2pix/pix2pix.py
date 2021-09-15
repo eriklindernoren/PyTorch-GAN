@@ -104,25 +104,8 @@ optimizer_G = torch.optim.Adam(generator.parameters(), lr=opt.lr, betas=(opt.b1,
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2))
 
 # Configure dataloaders
-transforms_ = [
-    transforms.Resize((opt.image_size, opt.image_size), Image.BICUBIC),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-]
-
-dataloader = DataLoader(
-    ImageDataset("../../data/%s" % DATASET_NAME, transforms_=transforms_),
-    batch_size=opt.batch_size,
-    shuffle=True,
-    num_workers=opt.n_cpu,
-)
-
-val_dataloader = DataLoader(
-    ImageDataset("../../data/%s" % DATASET_NAME, transforms_=transforms_, mode="val"),
-    batch_size=10,
-    shuffle=True,
-    num_workers=1,
-)
+dataloader = get_loader(opt,'train')
+val_dataloader = get_loader(opt,'val')
 
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
