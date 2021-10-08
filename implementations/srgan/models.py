@@ -9,7 +9,7 @@ class FeatureExtractor(nn.Module):
     def __init__(self):
         super(FeatureExtractor, self).__init__()
         vgg19_model = vgg19(pretrained=True)
-        self.feature_extractor = nn.Sequential(*list(vgg19_model.features.children())[:18])
+        self.feature_extractor = nn.Sequential(*list(vgg19_model.features.children())[:35])
 
     def forward(self, img):
         return self.feature_extractor(img)
