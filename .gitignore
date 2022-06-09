@@ -10,3 +10,5 @@ implementations/*/images
 implementations/*/saved_models
 
 __pycache__
+venv
+.idea
