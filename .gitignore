@@ -12,3 +12,5 @@ implementations/*/saved_models
 __pycache__
 venv
 .idea
+
+applications/gan_malware/weights
