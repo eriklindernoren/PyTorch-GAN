@@ -14,3 +14,4 @@ venv
 .idea
 
 applications/gan_malware/weights
+applications/gan_malware/local
