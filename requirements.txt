@@ -6,3 +6,7 @@ scipy
 pillow
 urllib3
 scikit-image
+munch
+timm
+wandb
+PyYAML

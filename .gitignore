@@ -10,3 +10,10 @@ implementations/*/images
 implementations/*/saved_models
 
 __pycache__
+venv
+.idea
+
+/applications/gan_malware/local/
+/applications/data/
+/applications/gan_malware/images/
+/applications/gan_malware/weights/
