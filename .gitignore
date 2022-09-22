@@ -13,4 +13,7 @@ __pycache__
 venv
 .idea
 
-applications/gan_malware/local
+/applications/gan_malware/local/
+/applications/data/
+/applications/gan_malware/images/
+/applications/gan_malware/weights/
