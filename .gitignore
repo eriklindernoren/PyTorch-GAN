@@ -3,7 +3,7 @@
 *.h5
 *.hdf5
 .DS_Store
-
+.idea
 data/*/
 implementations/*/data
 implementations/*/images
