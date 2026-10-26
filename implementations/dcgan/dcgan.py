@@ -128,6 +128,9 @@ dataloader = torch.utils.data.DataLoader(
     ),
     batch_size=opt.batch_size,
     shuffle=True,
+    num_workers=opt.n_cpu,
+    pin_memory=cuda,
+    persistent_workers=opt.n_cpu > 0,
 )
 
 # Optimizers
@@ -148,7 +151,7 @@ for epoch in range(opt.n_epochs):
         fake = Variable(Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
 
         # Configure input
-        real_imgs = Variable(imgs.type(Tensor))
+        real_imgs = Variable(imgs.to(device="cuda", non_blocking=True) if cuda else imgs)
 
         # -----------------
         #  Train Generator
